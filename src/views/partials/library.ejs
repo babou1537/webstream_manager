@@ -1,0 +1,22 @@
+<section>
+  <h1>Bibliothèque de contenu</h1>
+  <form id="uploadForm" action="/library/upload" method="post" enctype="multipart/form-data">
+    <div class="dropzone" id="dropzone">Glissez-déposez vos fichiers ici ou cliquez</div>
+    <input type="file" id="fileInput" name="files" accept="image/*" multiple hidden />
+    <button type="submit">Uploader</button>
+  </form>
+
+  <h2>Fichiers</h2>
+  <div class="grid">
+    <% if (files && files.length) { %>
+      <% files.forEach(f => { %>
+        <div class="card">
+          <img src="/content/<%= f %>" alt="<%= f %>" />
+          <div class="meta"><%= f %></div>
+        </div>
+      <% }) %>
+    <% } else { %>
+      <p>Aucun fichier pour le moment.</p>
+    <% } %>
+  </div>
+</section>

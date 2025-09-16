@@ -1,0 +1,87 @@
+<section class="page">
+  <h1>Écrans</h1>
+
+  <form class="card" method="post" action="/screens/create">
+    <h2>Créer un écran</h2>
+    <div class="grid">
+      <label>Référence
+        <input name="ref" placeholder="screen_mtr_t3_3_2" required />
+      </label>
+      <label>Famille
+        <input name="family" placeholder="transport / musée / voie publique" />
+      </label>
+      <label>Largeur (blocs)
+        <input name="width" type="number" min="1" step="1" />
+      </label>
+      <label>Hauteur (blocs)
+        <input name="height" type="number" min="1" step="1" />
+      </label>
+    </div>
+    <button type="submit">Créer</button>
+  </form>
+
+  <div class="card">
+    <h2>Liste des écrans</h2>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Référence</th>
+          <th>Famille</th>
+          <th>Dimensions</th>
+          <th>Contenu assigné</th>
+          <th>Assigner</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+      <% if (!screens || screens.length === 0) { %>
+        <tr><td colspan="6" class="muted">Aucun écran</td></tr>
+      <% } %>
+      <% (screens || []).forEach(s => { %>
+        <tr>
+          <td><code><%= s.ref %></code><br/>
+            <small>URL: /<%= s.ref %>.png</small>
+          </td>
+          <td><%= s.family || '—' %></td>
+          <td>
+            <form method="post" action="/screens/<%= encodeURIComponent(s.ref) %>/dimensions" class="inline-form">
+              <input name="width" type="number" min="1" step="1" value="<%= s.width || '' %>" placeholder="L" class="dim-input" />
+              ×
+              <input name="height" type="number" min="1" step="1" value="<%= s.height || '' %>" placeholder="H" class="dim-input" />
+              <button type="submit" title="Enregistrer dimensions">💾</button>
+            </form>
+          </td>
+          <td>
+            <% if (s.content) { %>
+              <div class="assigned">
+                <a href="/content/<%= encodeURIComponent(s.content) %>" target="_blank"><%= s.content %></a>
+              </div>
+            <% } else { %>
+              <span class="muted">—</span>
+            <% } %>
+          </td>
+          <td>
+            <form method="post" action="/screens/<%= encodeURIComponent(s.ref) %>/assign" class="inline-form">
+              <select name="file" required>
+                <option value="" disabled <%= s.content ? '' : 'selected' %>>Choisir un fichier…</option>
+                <% (libraryFiles || []).forEach(f => { %>
+                  <option value="<%= f %>" <%= s.content === f ? 'selected' : '' %>><%= f %></option>
+                <% }); %>
+              </select>
+              <button type="submit">Assigner</button>
+            </form>
+          </td>
+          <td>
+            <form method="post" action="/screens/<%= encodeURIComponent(s.ref) %>/unassign" class="inline-form">
+              <button type="submit" <%= s.content ? '' : 'disabled' %>>Déassigner</button>
+            </form>
+            <form method="post" action="/screens/<%= encodeURIComponent(s.ref) %>/delete" class="inline-form" onsubmit="return confirm('Supprimer <%= s.ref %> ?');">
+              <button type="submit" class="danger">Supprimer</button>
+            </form>
+          </td>
+        </tr>
+      <% }); %>
+      </tbody>
+    </table>
+  </div>
+</section>

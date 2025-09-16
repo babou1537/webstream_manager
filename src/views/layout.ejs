@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><%= typeof title !== 'undefined' ? title + ' - ' : '' %>WebStream Manager</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <nav class="topbar">
+    <a href="/" class="<%= page==='home' ? 'active' : '' %>">Accueil</a>
+    <a href="/library" class="<%= page==='library' ? 'active' : '' %>">Bibliothèque</a>
+    <a href="/screens" class="<%= page==='screens' ? 'active' : '' %>">Écrans</a>
+  </nav>
+  <main>
+    <% const _view = (typeof view === 'string' && view) ? view : 'partials/home'; %>
+    <%- include(_view) %>
+  </main>
+  <script src="/static/uploader.js"></script>
+</body>
+</html>
