@@ -1,22 +1,73 @@
-<section>
+<section class="page">
   <h1>Bibliothèque de contenu</h1>
+  
   <form id="uploadForm" action="/library/upload" method="post" enctype="multipart/form-data">
     <div class="dropzone" id="dropzone">Glissez-déposez vos fichiers ici ou cliquez</div>
     <input type="file" id="fileInput" name="files" accept="image/*" multiple hidden />
     <button type="submit">Uploader</button>
   </form>
 
-  <h2>Fichiers</h2>
-  <div id="library-grid" class="grid">
-    <% if (files && files.length) { %>
-      <% files.forEach(f => { %>
-        <div class="card">
-          <img src="/content/<%= f %>" data-filename="<%= f %>" alt="<%= f %>" class="previewable" />
-          <div class="meta"><%= f %></div>
+  <div class="card_screens">
+    <div class="library-header">
+      <h2>Fichiers</h2>
+      <div class="library-controls">
+        <div class="library-search">
+          <div class="search-results" id="searchResults"></div>
+          <input 
+            type="text" 
+            id="searchInput" 
+            placeholder="Rechercher dans la bibliothèque..." 
+            autocomplete="off"
+          />
+          <div class="search-icons">
+            <button type="button" class="clear-search" id="clearSearch" title="Effacer la recherche">×</button>
+            <span class="search-icon">🔍</span>
+          </div>
         </div>
-      <% }) %>
-    <% } else { %>
-      <p>Aucun fichier pour le moment.</p>
-    <% } %>
+        
+        <div class="size-controls">
+          <button type="button" class="size-btn active" data-size="small" title="Petites vignettes">
+            <svg width="16" height="16" viewBox="0 0 16 16">
+              <rect x="1" y="1" width="3" height="3" fill="currentColor"/>
+              <rect x="6" y="1" width="3" height="3" fill="currentColor"/>
+              <rect x="11" y="1" width="3" height="3" fill="currentColor"/>
+              <rect x="1" y="6" width="3" height="3" fill="currentColor"/>
+              <rect x="6" y="6" width="3" height="3" fill="currentColor"/>
+              <rect x="11" y="6" width="3" height="3" fill="currentColor"/>
+              <rect x="1" y="11" width="3" height="3" fill="currentColor"/>
+              <rect x="6" y="11" width="3" height="3" fill="currentColor"/>
+              <rect x="11" y="11" width="3" height="3" fill="currentColor"/>
+            </svg>
+          </button>
+          <button type="button" class="size-btn" data-size="medium" title="Vignettes moyennes">
+            <svg width="16" height="16" viewBox="0 0 16 16">
+              <rect x="1" y="1" width="6" height="6" fill="currentColor"/>
+              <rect x="9" y="1" width="6" height="6" fill="currentColor"/>
+              <rect x="1" y="9" width="6" height="6" fill="currentColor"/>
+              <rect x="9" y="9" width="6" height="6" fill="currentColor"/>
+            </svg>
+          </button>
+          <button type="button" class="size-btn" data-size="large" title="Grandes vignettes">
+            <svg width="16" height="16" viewBox="0 0 16 16">
+              <rect x="2" y="2" width="12" height="5" fill="currentColor"/>
+              <rect x="2" y="9" width="12" height="5" fill="currentColor"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="library-grid" class="grid size-small">
+      <% if (files && files.length) { %>
+        <% files.forEach(f => { %>
+          <div class="card library-item" data-filename="<%= f.toLowerCase() %>">
+            <img src="/content/<%= f %>" data-filename="<%= f %>" alt="<%= f %>" class="previewable" />
+            <div class="meta"><%= f %></div>
+          </div>
+        <% }) %>
+      <% } else { %>
+        <p class="no-files">Aucun fichier pour le moment.</p>
+      <% } %>
+    </div>
   </div>
 </section>
