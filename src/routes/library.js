@@ -3,6 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { listLibraryFiles } from '../store.js';
+import { deleteLibraryFile } from '../store.js'; // ajout
 import { fileURLToPath } from 'url';
 
 const router = express.Router();
@@ -37,6 +38,22 @@ router.get('/', (req, res) => {
 
 router.post('/upload', upload.array('files', 50), (req, res) => {
   res.redirect('/library');
+});
+
+// Supprimer un fichier de la bibliothèque
+router.post('/delete', express.json(), (req, res) => {
+  const { file } = req.body || {};
+  if (!file) return res.status(400).json({ error: 'FILE_REQUIRED' });
+  try {
+    deleteLibraryFile(file);
+    return res.json({ ok: true });
+  } catch (e) {
+    if (e.message === 'FILE_IN_USE') return res.status(409).json({ error: 'FILE_IN_USE' });
+    if (e.message === 'FILE_NOT_FOUND') return res.status(404).json({ error: 'FILE_NOT_FOUND' });
+    if (e.message === 'BAD_PATH') return res.status(400).json({ error: 'BAD_PATH' });
+    console.error('Delete error:', e);
+    return res.status(500).json({ error: 'SERVER_ERROR' });
+  }
 });
 
 export default router;

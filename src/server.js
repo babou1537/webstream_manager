@@ -6,6 +6,7 @@ import { getScreen, resolveContentPath } from './store.js';
 import indexRouter from './routes/index.js';
 import libraryRouter from './routes/library.js';
 import screensRouter from './routes/screens.js';
+import morgan from 'morgan';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -24,6 +25,21 @@ app.use('/content', express.static(path.resolve(__dirname, '..', 'storage', 'lib
 app.use('/', indexRouter);
 app.use('/library', libraryRouter);
 app.use('/screens', screensRouter);
+
+// Logger HTTP (format court) -> active si WSM_HTTP_LOG !== '0'
+if (process.env.WSM_HTTP_LOG !== '0') {
+  app.use(morgan('[:date[iso]] :method :url :status :res[content-length] - :response-time ms'));
+}
+
+if (process.env.WSM_LOG_BODY === '1') {
+  app.use((req, res, next) => {
+    // évite de loguer l’upload binaire
+    if (req.method !== 'GET' && req.originalUrl !== '/library/upload') {
+      console.log('[BODY]', req.method, req.originalUrl, req.body);
+    }
+    next();
+  });
+}
 
 // Endpoint pour Minecraft: http://[::]:8282/{ref}.png
 app.get('/:ref.png', (req, res) => {
