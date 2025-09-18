@@ -1,23 +1,13 @@
 <section class="page">
-  <h1>Écrans</h1>
-
-  <form class="card_screens" method="post" action="/screens/create">
-    <h2>Créer un écran</h2>
-    <div class="grid">
-      <label>Référence<input name="ref" placeholder="screen_001" required /></label>
-      <label>Famille
-        <select name="familyId">
-          <option value="">— Aucune —</option>
-          <% (families || []).forEach(f => { %>
-            <option value="<%= f.id %>"><%= f.name %></option>
-          <% }) %>
-        </select>
-      </label>
-      <label>Largeur<input name="width" type="number" step="0.1" min="0" placeholder="16" /></label>
-      <label>Hauteur<input name="height" type="number" step="0.1" min="0" placeholder="9" /></label>
-    </div>
-    <button type="submit">Créer</button>
-  </form>
+  <div class="page-header">
+    <h1>Écrans</h1>
+    <button type="button" class="btn-add-screen" id="addScreenBtn">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2Z"/>
+      </svg>
+      Ajouter un écran
+    </button>
+  </div>
 
   <div class="card_screens">
     <!-- Filtres en haut -->
@@ -30,9 +20,6 @@
         <a class="manage-btn" href="/families">⚙️ Gérer les familles</a>
       </div>
     </div>
-
-    <!-- Séparation visuelle -->
-    <div class="content-separator"></div>
 
     <!-- Contenu filtré -->
     <div class="content-area">

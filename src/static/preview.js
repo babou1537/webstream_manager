@@ -104,6 +104,195 @@
     return `/screens/placeholder/${w}/${h}.svg`;
   }
 
+  // Fonction pour contraindre la taille de la preview - SIMPLIFIÉE
+  function constrainPreviewSize(w, h) {
+    // Supprimer les styles inline qui interfèrent
+    previewFrame.style.removeProperty('max-width');
+    previewFrame.style.removeProperty('max-height');
+    previewFrame.style.removeProperty('width');
+    previewFrame.style.removeProperty('height');
+    
+    // Laisser CSS faire le travail avec aspect-ratio et les nouvelles règles
+    console.log(`Preview contrainte : ${w}×${h}`);
+  }
+
+  // Fonction pour mettre à jour le compteur de famille
+  function updateFamilyCounter(cardToRemove) {
+    if (!cardToRemove) return;
+    
+    // Trouver la famille parente
+    var familyGroup = cardToRemove.closest('.family-group');
+    if (!familyGroup) return;
+    
+    var summary = familyGroup.querySelector('summary');
+    var screenGrid = familyGroup.querySelector('.screen-grid');
+    
+    if (!summary || !screenGrid) return;
+    
+    // Compter les cartes restantes (sans celle qui va être supprimée)
+    var remainingCards = screenGrid.querySelectorAll('.screen-card:not([style*="fadeOut"])').length - 1;
+    
+    // Mettre à jour le texte du summary
+    var familyName = summary.querySelector('strong');
+    if (familyName) {
+      var familyNameText = familyName.textContent;
+      summary.innerHTML = '<strong>' + familyNameText + '</strong> — ' + remainingCards + ' écran' + (remainingCards > 1 ? 's' : '');
+    }
+    
+    // Si plus d'écrans, masquer le groupe famille
+    if (remainingCards === 0) {
+      setTimeout(function() {
+        familyGroup.style.animation = 'fadeOut 0.3s ease forwards';
+        setTimeout(function() {
+          if (familyGroup.parentNode) familyGroup.parentNode.removeChild(familyGroup);
+          
+          // Vérifier s'il reste des familles
+          var allFamilyGroups = document.querySelectorAll('.family-group');
+          if (allFamilyGroups.length === 0) {
+            // Afficher message "Aucune famille"
+            var contentArea = document.querySelector('.content-area');
+            if (contentArea) {
+              contentArea.innerHTML = '<p class="muted">Aucune famille</p>';
+            }
+          }
+        }, 300);
+      }, 400); // Délai pour laisser la carte disparaître d'abord
+    }
+  }
+
+  // Fonction pour déplacer une carte vers la bonne famille en mode "family"
+  function moveCardToFamily(tile, famId, famName) {
+    if (!tile) return;
+    
+    var card = tile.closest('.screen-card');
+    if (!card) return;
+    
+    // Trouver la section famille cible
+    var targetSection = null;
+    if (famId) {
+      // Chercher la famille par nom dans les summary
+      var summaries = document.querySelectorAll('.family-group summary');
+      for (var i = 0; i < summaries.length; i++) {
+        if (summaries[i].textContent.indexOf(famName) > -1) {
+          targetSection = summaries[i].parentNode.querySelector('.screen-grid');
+          break;
+        }
+      }
+    } else {
+      // Chercher "Sans famille"
+      var summaries = document.querySelectorAll('.family-group summary');
+      for (var i = 0; i < summaries.length; i++) {
+        if (summaries[i].textContent.indexOf('Sans famille') > -1) {
+          targetSection = summaries[i].parentNode.querySelector('.screen-grid');
+          break;
+        }
+      }
+    }
+    
+    if (targetSection) {
+      // Animation de déplacement
+      card.style.animation = 'slideOut 0.3s ease forwards';
+      setTimeout(function() {
+        if (targetSection && card.parentNode) {
+          card.parentNode.removeChild(card);
+          targetSection.appendChild(card);
+          card.style.animation = 'slideIn 0.3s ease forwards';
+        }
+      }, 300);
+    }
+  }
+
+  // Feedback visuel de sauvegarde réussie
+  function showSaveSuccess(button) {
+    if (!button) return;
+    
+    var originalText = button.textContent;
+    var originalColor = button.style.backgroundColor;
+    
+    button.textContent = '✓ Sauvé';
+    button.style.backgroundColor = '#10b981';
+    button.style.color = '#fff';
+    button.disabled = true;
+    
+    setTimeout(function() {
+      button.textContent = originalText;
+      button.style.backgroundColor = originalColor;
+      button.style.color = '';
+      button.disabled = false;
+    }, 1500);
+  }
+
+  // CRÉATION D'ÉCRAN
+  function openCreateScreen() {
+    currentMode = 'create';
+    dialog.classList.add('wide');
+    layout.classList.remove('single');
+    formBox.hidden = false;
+    deleteBtn.hidden = true;
+
+    // Placeholder avec ratio par défaut - SIMPLE
+    previewFrame.classList.remove('natural');
+    previewFrame.style.setProperty('--w', '16');
+    previewFrame.style.setProperty('--h', '9');
+    
+    constrainPreviewSize(16, 9);
+
+    var data = getScreensData();
+    
+    openCommon('Nouvel écran', getPlaceholderUrl(16, 9));
+
+    // Formulaire de création
+    var famOptions = ['<option value="">— Aucune —</option>']
+      .concat((data.families || []).map(function (f) {
+        return '<option value="' + String(f.id) + '">' + f.name + '</option>';
+      }))
+      .join('');
+
+    formBox.innerHTML = ''
+      + '<h3>Créer un écran</h3>'
+      + '<form class="create-form" method="post" action="/screens/create">'
+      + '  <div class="form-row">'
+      + '    <label for="create-ref">Référence</label>'
+      + '    <input id="create-ref" name="ref" placeholder="screen_001" required />'
+      + '  </div>'
+      + '  <div class="form-row">'
+      + '    <label for="create-family">Famille</label>'
+      + '    <select id="create-family" name="familyId">' + famOptions + '</select>'
+      + '  </div>'
+      + '  <div class="form-row">'
+      + '    <label>Dimensions</label>'
+      + '    <div class="dimensions-row">'
+      + '      <input id="create-width" name="width" type="number" step="0.1" min="0" placeholder="16" value="16" />'
+      + '      <div class="separator">×</div>'
+      + '      <input id="create-height" name="height" type="number" step="0.1" min="0" placeholder="9" value="9" />'
+      + '    </div>'
+      + '  </div>'
+      + '  <div class="form-actions">'
+      + '    <button type="button" class="btn secondary" data-action="close">Annuler</button>'
+      + '    <button type="submit" class="btn primary">Créer l\'écran</button>'
+      + '  </div>'
+      + '</form>';
+
+    // Preview en temps réel des dimensions SIMPLIFIÉ
+    var widthInput = formBox.querySelector('#create-width');
+    var heightInput = formBox.querySelector('#create-height');
+    
+    function updatePreview() {
+      var w = Math.max(0.1, num(widthInput.value, 16));
+      var h = Math.max(0.1, num(heightInput.value, 9));
+      
+      previewFrame.style.setProperty('--w', String(w));
+      previewFrame.style.setProperty('--h', String(h));
+      
+      constrainPreviewSize(w, h);
+      
+      imgEl.src = getPlaceholderUrl(w, h);
+    }
+    
+    if (widthInput) widthInput.addEventListener('input', updatePreview);
+    if (heightInput) heightInput.addEventListener('input', updatePreview);
+  }
+
   // SCREENS
   function openScreen(tile) {
     var ds = tile.dataset || {};
@@ -115,19 +304,20 @@
     formBox.hidden = false;
     deleteBtn.hidden = true;
 
-    // ratio forcé
+    // ratio forcé - SIMPLIFIÉ
     var w = Math.max(0.1, num(ds.width, 16));
     var h = Math.max(0.1, num(ds.height, 9));
     previewFrame.classList.remove('natural');
     previewFrame.style.setProperty('--w', String(w));
     previewFrame.style.setProperty('--h', String(h));
+    
+    constrainPreviewSize(w, h);
 
     var data = getScreensData();
 
     currentRef = ds.ref || null;
     currentFile = ds.content || null;
 
-    // Utiliser le placeholder dynamique si pas d'image
     const imgSrc = (imgTag && imgTag.src) ? imgTag.src : getPlaceholderUrl(w, h);
     openCommon(currentRef || 'Écran', imgSrc);
 
@@ -145,7 +335,7 @@
     }).join('');
 
     formBox.innerHTML = ''
-      + '<h3>Modifier l’écran</h3>'
+      + "<h3>Modifier l'écran</h3>"
       + '<form class="row" method="post" action="/screens/' + encodeURIComponent(currentRef) + '/family">'
       + '  <label>Famille</label>'
       + '  <select name="familyId">' + famOptions + '</select>'
@@ -153,9 +343,9 @@
       + '</form>'
       + '<form class="row" method="post" action="/screens/' + encodeURIComponent(currentRef) + '/dimensions">'
       + '  <label>Dimensions</label>'
-      + '  <input name="width" type="number" step="0.1" min="0" value="' + (ds.width || '') + '" placeholder="L" />'
+      + '  <input name="width" id="preview-form-input-width" type="number" step="0.1" min="0" value="' + (ds.width || '') + '" placeholder="L" />'
       + '  ×'
-      + '  <input name="height" type="number" step="0.1" min="0" value="' + (ds.height || '') + '" placeholder="H" />'
+      + '  <input name="height" id="preview-form-input-height" type="number" step="0.1" min="0" value="' + (ds.height || '') + '" placeholder="H" />'
       + '  <button class="btn primary" type="submit">💾</button>'
       + '</form>'
       + '<form class="row" method="post" action="/screens/' + encodeURIComponent(currentRef) + '/assign">'
@@ -167,7 +357,7 @@
       + '  <button class="btn" type="submit" ' + (currentFile ? '' : 'disabled') + '>Déassigner</button>'
       + '</form>'
       + '<form class="row" method="post" action="/screens/' + encodeURIComponent(currentRef) + '/delete" onsubmit="return confirm(\'Supprimer ' + currentRef + ' ?\');">'
-      + '  <button class="btn danger" type="submit">Supprimer l’écran</button>'
+      + "  <button class=\"btn danger\" type=\"submit\">Supprimer l'écran</button>"
       + '</form>';
   }
 
@@ -186,6 +376,15 @@
     if (tile) {
       e.preventDefault();
       openScreen(tile);
+    }
+  });
+
+  // Clic sur "Ajouter un écran"
+  document.addEventListener('click', function (e) {
+    if (e.target && e.target.id === 'addScreenBtn') {
+      e.preventDefault();
+      console.log('Clic sur Ajouter un écran détecté'); // DEBUG
+      openCreateScreen();
     }
   });
 
@@ -283,6 +482,13 @@
       return;
     }
     e.preventDefault();
+
+    // Création d'écran - redirection classique
+    if (form.action.indexOf('/screens/create') > -1) {
+      console.log('Création d\'écran - soumission classique');
+      form.submit(); // Soumission normale pour redirection
+      return;
+    }
 
     console.log('Appel postForm...');
     postForm(form).then(function (data) {
@@ -401,6 +607,9 @@
         if (tile && tile.closest) {
           var card = tile.closest('.screen-card');
           if (card) {
+            // Mettre à jour le compteur de famille AVANT suppression
+            updateFamilyCounter(card);
+            
             card.style.animation = 'fadeOut 0.3s ease forwards';
             setTimeout(function() {
               if (card.parentNode) card.parentNode.removeChild(card);
@@ -414,65 +623,4 @@
     });
   });
 
-  // Fonction pour déplacer une carte vers la bonne famille en mode "family"
-  function moveCardToFamily(tile, famId, famName) {
-    if (!tile) return;
-    
-    var card = tile.closest('.screen-card');
-    if (!card) return;
-    
-    // Trouver la section famille cible
-    var targetSection = null;
-    if (famId) {
-      // Chercher la famille par nom dans les summary
-      var summaries = document.querySelectorAll('.family-group summary');
-      for (var i = 0; i < summaries.length; i++) {
-        if (summaries[i].textContent.indexOf(famName) > -1) {
-          targetSection = summaries[i].parentNode.querySelector('.screen-grid');
-          break;
-        }
-      }
-    } else {
-      // Chercher "Sans famille"
-      var summaries = document.querySelectorAll('.family-group summary');
-      for (var i = 0; i < summaries.length; i++) {
-        if (summaries[i].textContent.indexOf('Sans famille') > -1) {
-          targetSection = summaries[i].parentNode.querySelector('.screen-grid');
-          break;
-        }
-      }
-    }
-    
-    if (targetSection) {
-      // Animation de déplacement
-      card.style.animation = 'slideOut 0.3s ease forwards';
-      setTimeout(function() {
-        if (targetSection && card.parentNode) {
-          card.parentNode.removeChild(card);
-          targetSection.appendChild(card);
-          card.style.animation = 'slideIn 0.3s ease forwards';
-        }
-      }, 300);
-    }
-  }
-
-  // Feedback visuel de sauvegarde réussie
-  function showSaveSuccess(button) {
-    if (!button) return;
-    
-    var originalText = button.textContent;
-    var originalColor = button.style.backgroundColor;
-    
-    button.textContent = '✓ Sauvé';
-    button.style.backgroundColor = '#10b981';
-    button.style.color = '#fff';
-    button.disabled = true;
-    
-    setTimeout(function() {
-      button.textContent = originalText;
-      button.style.backgroundColor = originalColor;
-      button.style.color = '';
-      button.disabled = false;
-    }, 1500);
-  }
 })();
