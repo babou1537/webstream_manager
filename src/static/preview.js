@@ -77,6 +77,8 @@
 
   // LIBRARY
   function openLibrary(img) {
+    overlay.classList.add('mode-library');
+    overlay.classList.remove('mode-create','mode-screen');
     currentMode = 'library';
     dialog.classList.remove('wide');
     layout.classList.add('single');
@@ -224,6 +226,8 @@
 
   // CRÉATION D'ÉCRAN
   function openCreateScreen() {
+    overlay.classList.add('mode-create');
+    overlay.classList.remove('mode-library','mode-screen');
     currentMode = 'create';
     dialog.classList.add('wide');
     layout.classList.remove('single');
@@ -298,6 +302,8 @@
     var ds = tile.dataset || {};
     var imgTag = tile.querySelector('img');
 
+    overlay.classList.add('mode-screen');
+    overlay.classList.remove('mode-library','mode-create');
     currentMode = 'screen';
     dialog.classList.add('wide');
     layout.classList.remove('single');

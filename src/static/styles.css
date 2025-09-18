@@ -468,6 +468,9 @@ body.sidenav-open .sidenav-backdrop {
   transition: all 0.3s ease;
 }
 .preview-overlay.open { opacity: 1; visibility: visible; }
+.preview-overlay:not(.mode-library) .preview-delete {
+  display: none !important;
+}
 .preview-backdrop {
   position: absolute;
   top: 0;
