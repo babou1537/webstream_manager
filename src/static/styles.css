@@ -82,6 +82,106 @@ label { display: block; margin-bottom: .5rem; font-weight: 500; color: #374151; 
 input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
 textarea { width: 100%; padding: .5rem; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; font-size: .95rem; transition: border-color .2s ease; }
 
+/* === SCREEN HEADER & EDIT MODE === */
+.screen-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  padding-bottom: .5rem;
+  border-bottom: 1px solid #334155;
+}
+
+.screen-header h3 {
+  margin: 0;
+  color: #e5e7eb;
+  font-size: 1.1rem;
+}
+
+/* Edit toggle: blue by default, grows on hover, shows pencil with strike when active */
+.edit-toggle {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #2563eb !important;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%) !important;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .2s ease, transform .15s ease;
+  font-size: 0;
+  position: relative;
+}
+
+.edit-toggle:hover {
+  transform: scale(1.08);
+}
+
+.edit-toggle.active {
+  background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%) !important;
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2);
+}
+
+/* Pencil with strike when active */
+.edit-toggle.active::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 16px;
+  height: 16px;
+  background: url('data:image/svg+xml;utf8,<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11.013 2.5a.5.5 0 0 1 .708.003l1.777 1.777a.5.5 0 0 1 0 .708L8.5 9.987l-2.5.5a.5.5 0 0 1-.593-.593l.5-2.5L11.013 2.5z" fill="white"/><line x1="2" y1="14" x2="14" y2="2" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>') no-repeat center;
+  background-size: contain;
+  pointer-events: none;
+}
+
+/* Hide default pencil svg when active */
+.edit-toggle.active svg {
+  display: none;
+}
+
+.edit-toggle svg {
+  width: 14px;
+  height: 14px;
+  transition: transform .2s ease;
+  display: block;
+}
+
+.edit-toggle:not(.active) svg {
+  filter: drop-shadow(0 0 2px rgba(255,255,255,.25));
+  transform: scale(1.1);
+}
+
+/* Style pour les champs désactivés */
+.edit-content input:disabled,
+.edit-content select:disabled {
+  background: #1e293b !important;
+  color: #64748b !important;
+  border-color: #334155 !important;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.edit-content input:disabled:focus,
+.edit-content select:disabled:focus {
+  box-shadow: none !important;
+  border-color: #334155 !important;
+}
+
+/* Animation pour les boutons qui apparaissent/disparaissent */
+.edit-btn {
+  transition: opacity .2s ease, transform .2s ease;
+}
+
+.edit-btn[style*="display: none"] {
+  opacity: 0;
+  transform: scale(0.9);
+}
+
 /* --- TABLE --- */
 .table { width: 100%; border-collapse: collapse; }
 .table th, .table td { padding: .5rem .6rem; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }

@@ -327,7 +327,7 @@
     const imgSrc = (imgTag && imgTag.src) ? imgTag.src : getPlaceholderUrl(w, h);
     openCommon(currentRef || 'Écran', imgSrc);
 
-    // Formulaire à droite
+    // Formulaire à droite - AVEC MODE ÉDITION
     var famOptions = ['<option value="">— Aucune —</option>']
       .concat((data.families || []).map(function (f) {
         var selected = String(ds.familyId || '') === String(f.id) ? ' selected' : '';
@@ -341,30 +341,83 @@
     }).join('');
 
     formBox.innerHTML = ''
-      + "<h3>Modifier l'écran</h3>"
-      + '<form class="row" method="post" action="/screens/' + encodeURIComponent(currentRef) + '/family">'
-      + '  <label>Famille</label>'
-      + '  <select name="familyId">' + famOptions + '</select>'
-      + '  <button class="btn primary" type="submit">OK</button>'
-      + '</form>'
-      + '<form class="row" method="post" action="/screens/' + encodeURIComponent(currentRef) + '/dimensions">'
-      + '  <label>Dimensions</label>'
-      + '  <input name="width" id="preview-form-input-width" type="number" step="0.1" min="0" value="' + (ds.width || '') + '" placeholder="L" />'
-      + '  ×'
-      + '  <input name="height" id="preview-form-input-height" type="number" step="0.1" min="0" value="' + (ds.height || '') + '" placeholder="H" />'
-      + '  <button class="btn primary" type="submit">💾</button>'
-      + '</form>'
-      + '<form class="row" method="post" action="/screens/' + encodeURIComponent(currentRef) + '/assign">'
-      + '  <label>Contenu</label>'
-      + '  <select name="file" required>' + libOptions + '</select>'
-      + '  <button class="btn primary" type="submit">Assigner</button>'
-      + '</form>'
-      + '<form class="row" method="post" action="/screens/' + encodeURIComponent(currentRef) + '/unassign">'
-      + '  <button class="btn" type="submit" ' + (currentFile ? '' : 'disabled') + '>Déassigner</button>'
-      + '</form>'
+      + '<div class="screen-header">'
+      + '  <h3>Modifier l\'écran</h3>'
+      + '  <button type="button" class="edit-toggle" id="edit-toggle" title="Activer l\'édition">'
+      + '    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">'
+      + '      <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708L8.5 11.207l-3 1a.5.5 0 0 1-.638-.638l1-3L13.207.854a.5.5 0 0 1 .939.146zM14.5 3L13 1.5 4.5 10 4 12l2-0.5L14.5 3z"/>'
+      + '    </svg>'
+      + '  </button>'
+      + '</div>'
+      + '<div class="edit-content" id="edit-content">'
+      + '  <form class="row edit-form" method="post" action="/screens/' + encodeURIComponent(currentRef) + '/family">'
+      + '    <label>Famille</label>'
+      + '    <select name="familyId" disabled>' + famOptions + '</select>'
+      + '    <button class="btn primary edit-btn" type="submit" style="display: none;">OK</button>'
+      + '  </form>'
+      + '  <form class="row edit-form" method="post" action="/screens/' + encodeURIComponent(currentRef) + '/dimensions">'
+      + '    <label>Dimensions</label>'
+      + '    <input name="width" id="preview-form-input-width" type="number" step="0.1" min="0" value="' + (ds.width || '') + '" placeholder="L" disabled />'
+      + '    × '
+      + '    <input name="height" id="preview-form-input-height" type="number" step="0.1" min="0" value="' + (ds.height || '') + '" placeholder="H" disabled />'
+      + '    <button class="btn primary edit-btn" type="submit" style="display: none;">💾</button>'
+      + '  </form>'
+      + '  <form class="row edit-form" method="post" action="/screens/' + encodeURIComponent(currentRef) + '/assign">'
+      + '    <label>Contenu</label>'
+      + '    <select name="file" required disabled>' + libOptions + '</select>'
+      + '    <button class="btn primary edit-btn" type="submit" style="display: none;">Assigner</button>'
+      + '  </form>'
+      + '  <form class="row edit-form" method="post" action="/screens/' + encodeURIComponent(currentRef) + '/unassign">'
+      + '    <button class="btn edit-btn" type="submit" ' + (currentFile ? '' : 'disabled') + ' style="display: none;">Déassigner</button>'
+      + '  </form>'
+      + '</div>'
       + '<form class="row" method="post" action="/screens/' + encodeURIComponent(currentRef) + '/delete" onsubmit="return confirm(\'Supprimer ' + currentRef + ' ?\');">'
-      + "  <button class=\"btn danger\" type=\"submit\">Supprimer l'écran</button>"
+      + '  <button class="btn danger" type="submit">Supprimer l\'écran</button>'
       + '</form>';
+
+    // Gestionnaire du bouton d'édition
+    var editToggle = formBox.querySelector('#edit-toggle');
+    var editContent = formBox.querySelector('#edit-content');
+    var isEditMode = false;
+
+    if (editToggle) {
+      editToggle.addEventListener('click', function() {
+        isEditMode = !isEditMode;
+        toggleEditMode(isEditMode);
+      });
+    }
+
+    function toggleEditMode(enable) {
+      var inputs = editContent.querySelectorAll('input, select');
+      var buttons = editContent.querySelectorAll('.edit-btn');
+      
+      if (enable) {
+        // Mode édition activé
+        editToggle.classList.add('active');
+        editToggle.title = 'Désactiver l\'édition';
+        
+        inputs.forEach(function(input) {
+          input.disabled = false;
+        });
+        
+        buttons.forEach(function(btn) {
+          btn.style.display = '';
+        });
+        
+      } else {
+        // Mode édition désactivé  
+        editToggle.classList.remove('active');
+        editToggle.title = 'Activer l\'édition';
+        
+        inputs.forEach(function(input) {
+          input.disabled = true;
+        });
+        
+        buttons.forEach(function(btn) {
+          btn.style.display = 'none';
+        });
+      }
+    }
   }
 
   // Délégation clic: LIBRARY

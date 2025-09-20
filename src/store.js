@@ -167,6 +167,10 @@ export function getScreen(ref) {
     WHERE s.ref = ?
   `).get(ref);
 }
+// export async function getScreen(ref) {
+//   const stmt = db.prepare('SELECT * FROM screens WHERE ref = ?');
+//   return stmt.get(ref);
+// }
 
 export function assignContent(ref, fileName) {
   const screen = getScreen(ref);
