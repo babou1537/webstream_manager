@@ -35,8 +35,8 @@ app.get('/:screenRef.png', async (req, res) => {
     const screenRef = req.params.screenRef;
     console.log('[SCREEN REQUEST]', screenRef);
     
-    // Récupérer l'écran depuis la DB
-    const screen = store.getScreen(screenRef); // Pas de await, c'est synchrone
+    // Récupérer l'écran depuis la DB (async)
+    const screen = await store.getScreen(screenRef);
     if (!screen || !screen.content) {
       console.log('[SCREEN 404]', screenRef, 'not found or no content assigned');
       return res.status(404).send('Screen not found or no content assigned');

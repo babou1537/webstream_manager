@@ -3,14 +3,14 @@ import { listFamilies, createFamily, deleteFamily } from '../store.js';
 
 const router = express.Router();
 
-router.get('/', (req, res) => {
-  const families = listFamilies();
+router.get('/', async (req, res) => {
+  const families = await listFamilies();
   res.render('layout', { title: 'Familles', page: 'families', view: 'partials/families', families });
 });
 
-router.post('/create', express.urlencoded({ extended: false }), (req, res) => {
+router.post('/create', express.urlencoded({ extended: false }), async (req, res) => {
   try {
-    createFamily(req.body.name);
+    await createFamily(req.body.name);
     res.redirect('/families');
   } catch (e) {
     if (e.message === 'FAMILY_EXISTS') return res.status(409).send('Famille déjà existante');
@@ -19,9 +19,9 @@ router.post('/create', express.urlencoded({ extended: false }), (req, res) => {
   }
 });
 
-router.post('/:id/delete', (req, res) => {
+router.post('/:id/delete', async (req, res) => {
   try {
-    deleteFamily(Number(req.params.id));
+    await deleteFamily(Number(req.params.id));
     res.redirect('/families');
   } catch (e) {
     if (e.message === 'FAMILY_IN_USE') return res.status(409).send('Famille utilisée par des écrans');

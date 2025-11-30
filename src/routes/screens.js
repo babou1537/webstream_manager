@@ -9,11 +9,11 @@ import {
 const router = express.Router();
 
 // GET /screens?mode=all|family (défaut: family)
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   const mode = (req.query.mode === 'all') ? 'all' : 'family'; // family par défaut
-  const families = listFamilies();
+  const families = await listFamilies();
   const libraryFiles = listLibraryFiles();
-  const screens = (mode === 'family') ? listScreensByFamily() : listScreens();
+  const screens = (mode === 'family') ? await listScreensByFamily() : await listScreens();
 
   res.render('layout', {
     title: 'Écrans',
@@ -33,11 +33,11 @@ function parseNum(v) {
 }
 
 // Créer un écran
-router.post('/create', (req, res) => {
+router.post('/create', async (req, res) => {
   const { ref, familyId, width, height } = req.body;
   if (!ref) return res.status(400).send('ref required');
   try {
-    createScreen({
+    await createScreen({
       ref: String(ref).trim(),
       familyId: familyId ? Number(familyId) : null,
       width: parseNum(width),
@@ -51,7 +51,7 @@ router.post('/create', (req, res) => {
 });
 
 // Changer la famille
-router.post('/:ref/family', (req, res) => {
+router.post('/:ref/family', async (req, res) => {
   console.log('=== POST /family DEBUG ===');
   console.log('Params:', req.params);
   console.log('Body brut:', req.body);
@@ -62,7 +62,7 @@ router.post('/:ref/family', (req, res) => {
   
   try {
     console.log('Appel setScreenFamily avec:', req.params.ref, famId);
-    setScreenFamily(req.params.ref, famId);
+    await setScreenFamily(req.params.ref, famId);
     console.log('setScreenFamily OK');
     
     // overlay attend JSON si Accept: application/json
@@ -83,9 +83,9 @@ router.post('/:ref/family', (req, res) => {
 });
 
 // Assigner contenu
-router.post('/:ref/assign', (req, res) => {
+router.post('/:ref/assign', async (req, res) => {
   try {
-    assignContent(req.params.ref, req.body.file);
+    await assignContent(req.params.ref, req.body.file);
     if ((req.headers.accept || '').includes('application/json')) return res.json({ ok: true, file: req.body.file });
     res.redirect('/screens');
   } catch (e) {
@@ -97,9 +97,9 @@ router.post('/:ref/assign', (req, res) => {
 });
 
 // Déassigner
-router.post('/:ref/unassign', (req, res) => {
+router.post('/:ref/unassign', async (req, res) => {
   try {
-    unassignContent(req.params.ref);
+    await unassignContent(req.params.ref);
     if ((req.headers.accept || '').includes('application/json')) return res.json({ ok: true });
     res.redirect('/screens');
   } catch (e) {
@@ -112,9 +112,9 @@ router.post('/:ref/unassign', (req, res) => {
 });
 
 // Supprimer un écran
-router.post('/:ref/delete', (req, res) => {
+router.post('/:ref/delete', async (req, res) => {
   try {
-    deleteScreen(req.params.ref);
+    await deleteScreen(req.params.ref);
     if ((req.headers.accept || '').includes('application/json')) return res.json({ ok: true });
     res.redirect('/screens');
   } catch (e) {
@@ -127,7 +127,7 @@ router.post('/:ref/delete', (req, res) => {
 });
 
 // Enregistrer dimensions
-router.post('/:ref/dimensions', (req, res) => {
+router.post('/:ref/dimensions', async (req, res) => {
   console.log('=== POST /dimensions DEBUG ===');
   console.log('Params:', req.params);
   console.log('Body brut:', req.body);
@@ -144,7 +144,7 @@ router.post('/:ref/dimensions', (req, res) => {
   
   try {
     console.log('Appel setDimensions avec:', req.params.ref, w, h);
-    setDimensions(req.params.ref, w, h);
+    await setDimensions(req.params.ref, w, h);
     console.log('setDimensions OK');
     
     if ((req.headers.accept || '').includes('application/json')) {
