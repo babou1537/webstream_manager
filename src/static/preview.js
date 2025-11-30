@@ -325,7 +325,20 @@
     currentFile = ds.content || null;
 
     const imgSrc = (imgTag && imgTag.src) ? imgTag.src : getPlaceholderUrl(w, h);
-    openCommon(currentRef || 'Écran', imgSrc);
+
+    // MODIFICATION: Ajouter le lien sous le titre pour les écrans
+    var titleHtml = currentRef || 'Écran';
+    if (currentRef) {
+      var gameUrl = 'http://localhost:8282/' + encodeURIComponent(currentRef) + '.png';
+      titleHtml += '<div class="preview-subtitle" data-action="copy-url" data-url="' + gameUrl + '">' + gameUrl + '</div>';
+    }
+    
+    titleEl.innerHTML = titleHtml; // innerHTML au lieu de textContent
+    imgEl.src = imgSrc;
+    overlay.classList.add('open');
+    document.body.classList.add('body-modal-open');
+
+    // openCommon(currentRef || 'Écran', imgSrc);
 
     // Formulaire à droite - AVEC MODE ÉDITION
     var famOptions = ['<option value="">— Aucune —</option>']
@@ -420,6 +433,8 @@
     }
   }
 
+
+
   // Délégation clic: LIBRARY
   document.addEventListener('click', function (e) {
     var libImg = e.target && e.target.closest ? e.target.closest('#library-grid img.previewable') : null;
@@ -458,6 +473,27 @@
       return;
     }
 
+    // Copier l'URL de l'écran
+    if (act === 'copy-url') {
+      e.preventDefault();
+      var url = target.dataset.url;
+      if (!url) return;
+
+      // Copier dans le presse-papier
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(function() {
+          showCopySuccess(target);
+        }).catch(function() {
+          // Fallback si clipboard API échoue
+          fallbackCopyText(url, target);
+        });
+      } else {
+        // Fallback pour navigateurs anciens
+        fallbackCopyText(url, target);
+      }
+      return;
+    }
+
     if (act === 'delete' && currentMode === 'library') {
       if (!currentFile) return;
       var ok = window.confirm('Supprimer le fichier "' + currentFile + '" de la bibliothèque ?');
@@ -489,6 +525,65 @@
       });
     }
   });
+
+  // Fonction pour afficher l'animation de copie
+  function showCopySuccess(element) {
+    if (!element) return;
+
+    // Créer l'élément d'animation
+    var copyIndicator = document.createElement('div');
+    copyIndicator.className = 'copy-indicator';
+    copyIndicator.innerHTML = '✓ Copié';
+    
+    // Positionner à côté de l'élément
+    var rect = element.getBoundingClientRect();
+    copyIndicator.style.position = 'fixed';
+    copyIndicator.style.left = (rect.right + 10) + 'px';
+    copyIndicator.style.top = (rect.top + rect.height / 2 - 12) + 'px';
+    copyIndicator.style.zIndex = '9999';
+    
+    document.body.appendChild(copyIndicator);
+    
+    // Animation et suppression
+    setTimeout(function() {
+      copyIndicator.classList.add('show');
+    }, 10);
+    
+    setTimeout(function() {
+      copyIndicator.classList.add('hide');
+      setTimeout(function() {
+        if (copyIndicator.parentNode) {
+          copyIndicator.parentNode.removeChild(copyIndicator);
+        }
+      }, 300);
+    }, 1500);
+  }
+
+  // Fallback pour la copie sans clipboard API
+  function fallbackCopyText(text, element) {
+    try {
+      var textArea = document.createElement('textarea');
+      textArea.value = text;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-9999px';
+      textArea.style.top = '-9999px';
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      showCopySuccess(element);
+    } catch (err) {
+      console.error('Impossible de copier:', err);
+      // Fallback: sélectionner le texte pour copie manuelle
+      if (window.getSelection) {
+        var selection = window.getSelection();
+        var range = document.createRange();
+        range.selectNodeContents(element);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+    }
+  }
 
   window.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && overlay.classList.contains('open')) close();

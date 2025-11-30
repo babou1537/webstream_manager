@@ -1,6 +1,7 @@
 import path from 'path';
 import fs from 'fs';
-import Database from 'better-sqlite3';
+import sqlite3 from 'sqlite3';
+const Database = sqlite3.Database;
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);

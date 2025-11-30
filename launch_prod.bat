@@ -11,3 +11,5 @@ powershell -NoLogo -NoProfile -Command "for ($i=0;$i -lt 40;$i++){ try { (Invoke
 
 REM Ouvre le navigateur par défaut
 start "" "http://localhost:8282"
+start "" "http://localhost:8100"
+start "" "http://localhost:8888"

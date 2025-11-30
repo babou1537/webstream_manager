@@ -5,3 +5,4 @@ storage/**/*.db
 *.log
 .DS_Store
 .vscode/
+storage/library/*
