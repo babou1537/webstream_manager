@@ -1,87 +1,96 @@
 <section class="page">
-  <h1>Écrans</h1>
-
-  <form class="card_screens" method="post" action="/screens/create">
-    <h2>Créer un écran</h2>
-    <div class="grid">
-      <label>Référence
-        <input name="ref" placeholder="screen_mtr_t3_3_2" required />
-      </label>
-      <label>Famille
-        <input name="family" placeholder="transport / musée / voie publique" />
-      </label>
-      <label>Largeur (blocs)
-        <input name="width" type="number" min="1" step="1" />
-      </label>
-      <label>Hauteur (blocs)
-        <input name="height" type="number" min="1" step="1" />
-      </label>
-    </div>
-    <button type="submit">Créer</button>
-  </form>
+  <div class="page-header">
+    <h1>Écrans</h1>
+    <button type="button" class="btn-add-screen" id="addScreenBtn">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2Z"/>
+      </svg>
+      Ajouter un écran
+    </button>
+  </div>
 
   <div class="card_screens">
-    <h2>Liste des écrans</h2>
-    <table class="table">
-      <thead>
-        <tr>
-          <th>Référence</th>
-          <th>Famille</th>
-          <th>Dimensions</th>
-          <th>Contenu assigné</th>
-          <th>Assigner</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-      <% if (!screens || screens.length === 0) { %>
-        <tr><td colspan="6" class="muted">Aucun écran</td></tr>
+    <!-- Filtres en haut -->
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <a class="view-btn <%= mode === 'family' ? 'active' : '' %>" href="/screens?mode=family">Par famille</a>
+        <a class="view-btn <%= mode === 'all' ? 'active' : '' %>" href="/screens?mode=all">Tous</a>
+      </div>
+      <div class="toolbar-right">
+        <a class="manage-btn" href="/families">⚙️ Gérer les familles</a>
+      </div>
+    </div>
+
+    <!-- Contenu filtré -->
+    <div class="content-area">
+      <% if (mode === 'all') { %>
+        <h2>Tous les écrans</h2>
+        <div class="screen-grid">
+          <% if (!screens || screens.length === 0) { %>
+            <p class="muted">Aucun écran</p>
+          <% } %>
+          <% (screens || []).forEach(s => { %>
+            <div class="screen-card">
+              <button type="button"
+                      class="screen-tile"
+                      data-ref="<%= s.ref %>"
+                      data-content="<%= s.content || '' %>"
+                      data-width="<%= s.width ?? '' %>"
+                      data-height="<%= s.height ?? '' %>"
+                      data-family-id="<%= s.family_id ?? '' %>">
+                <div class="sc-frame" style="--w: <%= (s.width ?? 16) %>; --h: <%= (s.height ?? 9) %>;">
+                  <img
+                    src="<%= s.content ? '/content/' + encodeURIComponent(s.content) : '/screens/placeholder/' + Math.round((s.width ?? 16) * 100) + '/' + Math.round((s.height ?? 9) * 100) + '.svg' %>"
+                    alt="<%= s.ref %>" />
+                </div>
+                <div class="sc-meta">
+                  <div class="sc-title"><code><%= s.ref %></code></div>
+                  <div class="sc-sub"><%= s.width ?? '—' %> × <%= s.height ?? '—' %></div>
+                  <div class="sc-family"><%= s.family || 'Sans famille' %></div>
+                </div>
+              </button>
+            </div>
+          <% }) %>
+        </div>
+      <% } else { %>
+        <% if (!screens || screens.length === 0) { %>
+          <p class="muted">Aucune famille</p>
+        <% } %>
+        <% (screens || []).forEach(g => { %>
+          <details class="family-group" open>
+            <summary><strong><%= g.family %></strong> — <%= g.screens.length %> écran(s)</summary>
+            <div class="screen-grid">
+              <% g.screens.forEach(s => { %>
+                <div class="screen-card">
+                  <button type="button"
+                          class="screen-tile"
+                          data-ref="<%= s.ref %>"
+                          data-content="<%= s.content || '' %>"
+                          data-width="<%= s.width ?? '' %>"
+                          data-height="<%= s.height ?? '' %>"
+                          data-family-id="<%= s.family_id ?? '' %>">
+                    <div class="sc-frame" style="--w: <%= (s.width ?? 16) %>; --h: <%= (s.height ?? 9) %>;">
+                      <img
+                        src="<%= s.content ? '/content/' + encodeURIComponent(s.content) : '/screens/placeholder/' + Math.round((s.width ?? 16) * 100) + '/' + Math.round((s.height ?? 9) * 100) + '.svg' %>"
+                        alt="<%= s.ref %>" />
+                    </div>
+                    <div class="sc-meta">
+                      <div class="sc-title"><code><%= s.ref %></code></div>
+                      <div class="sc-sub"><%= s.width ?? '—' %> × <%= s.height ?? '—' %></div>
+                    </div>
+                  </button>
+                </div>
+              <% }) %>
+            </div>
+          </details>
+        <% }) %>
       <% } %>
-      <% (screens || []).forEach(s => { %>
-        <tr>
-          <td><code><%= s.ref %></code><br/>
-            <small>URL: /<%= s.ref %>.png</small>
-          </td>
-          <td><%= s.family || '—' %></td>
-          <td>
-            <form method="post" action="/screens/<%= encodeURIComponent(s.ref) %>/dimensions" class="inline-form">
-              <input name="width" type="number" min="1" step="1" value="<%= s.width || '' %>" placeholder="L" class="dim-input" />
-              ×
-              <input name="height" type="number" min="1" step="1" value="<%= s.height || '' %>" placeholder="H" class="dim-input" />
-              <button type="submit" title="Enregistrer dimensions">💾</button>
-            </form>
-          </td>
-          <td>
-            <% if (s.content) { %>
-              <div class="assigned">
-                <a href="/content/<%= encodeURIComponent(s.content) %>" target="_blank"><%= s.content %></a>
-              </div>
-            <% } else { %>
-              <span class="muted">—</span>
-            <% } %>
-          </td>
-          <td>
-            <form method="post" action="/screens/<%= encodeURIComponent(s.ref) %>/assign" class="inline-form">
-              <select name="file" required>
-                <option value="" disabled <%= s.content ? '' : 'selected' %>>Choisir un fichier…</option>
-                <% (libraryFiles || []).forEach(f => { %>
-                  <option value="<%= f %>" <%= s.content === f ? 'selected' : '' %>><%= f %></option>
-                <% }); %>
-              </select>
-              <button type="submit">Assigner</button>
-            </form>
-          </td>
-          <td>
-            <form method="post" action="/screens/<%= encodeURIComponent(s.ref) %>/unassign" class="inline-form">
-              <button type="submit" <%= s.content ? '' : 'disabled' %>>Déassigner</button>
-            </form>
-            <form method="post" action="/screens/<%= encodeURIComponent(s.ref) %>/delete" class="inline-form" onsubmit="return confirm('Supprimer <%= s.ref %> ?');">
-              <button type="submit" class="danger">Supprimer</button>
-            </form>
-          </td>
-        </tr>
-      <% }); %>
-      </tbody>
-    </table>
+    </div>
   </div>
 </section>
+
+<!-- Données pour l'overlay (consommées par preview.js) -->
+<div id="screens-data"
+     data-families='<%- JSON.stringify(families || []) %>'
+     data-library='<%- JSON.stringify(libraryFiles || []) %>' hidden>
+</div>

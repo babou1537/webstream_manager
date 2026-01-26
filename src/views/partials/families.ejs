@@ -1,0 +1,41 @@
+<section class="page">
+  <h1>Familles d'écrans</h1>
+
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <!-- Utilise le même style que "Gérer les familles" -->
+      <a class="manage-btn" href="/screens">← Retour aux écrans</a>
+    </div>
+  </div>
+  
+  <form class="card_screens" method="post" action="/families/create">
+    <h2>Créer une famille</h2>
+    <label>Nom de la famille
+      <input name="name" placeholder="MTR, Parc, Musée…" required />
+    </label>
+    <button type="submit">Créer</button>
+  </form>
+
+  <div class="card_screens">
+    <h2>Liste des familles</h2>
+    <table class="table">
+      <thead><tr><th>Nom</th><th>Écrans</th><th>Actions</th></tr></thead>
+      <tbody>
+        <% if (!families || families.length === 0) { %>
+          <tr><td colspan="3" class="muted">Aucune famille</td></tr>
+        <% } %>
+        <% (families || []).forEach(f => { %>
+          <tr>
+            <td><%= f.name %></td>
+            <td><%= f.screen_count %></td>
+            <td>
+              <form method="post" action="/families/<%= f.id %>/delete" onsubmit="return confirm('Supprimer la famille « <%= f.name %> » ?');">
+                <button type="submit" class="btn-danger" <%= f.screen_count>0 ? 'disabled' : '' %>>Supprimer</button>
+              </form>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</section>

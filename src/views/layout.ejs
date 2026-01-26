@@ -1,15 +1,13 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title><%= typeof title !== 'undefined' ? title + ' - ' : '' %>WebStream Manager</title>
-  <link rel="stylesheet" href="/static/styles.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/x-icon" href="/static/images/game_geek_minecraft_video_watch_icon_183181.ico">
+  <title><%= title %> - WebStream Manager</title>
+  <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-  <!-- <header class="banner-header">
-    <img src="/static/images/BaniereMinecraft.svg" alt="Bannière Minecraft" class="banner-img" />
-  </header> -->
   <header class="site-header">
     <div class="header-left">
       <button class="nav-toggle" aria-label="Menu" aria-controls="topbar-links" aria-expanded="false">
@@ -23,22 +21,29 @@
     </div>
   </header>
 
-  <!-- Drawer vertical + backdrop -->
-  <aside id="sidenav" class="sidenav" aria-label="Navigation latérale">
-    <nav class="sidenav-links">
+  <div class="sidenav-backdrop" data-action="close-sidenav"></div>
+  <nav class="sidenav" aria-label="Navigation latérale">
+    <div class="sidenav-links">
       <a href="/" class="<%= page==='home' ? 'active' : '' %>">Accueil</a>
       <a href="/library" class="<%= page==='library' ? 'active' : '' %>">Bibliothèque</a>
       <a href="/screens" class="<%= page==='screens' ? 'active' : '' %>">Écrans</a>
-    </nav>
-  </aside>
-  <div id="sidenav-backdrop" class="sidenav-backdrop" aria-hidden="true"></div>
+      <a href="/families" class="<%= page==='families' ? 'active' : '' %>">Familles</a>
+    </div>
+  </nav>
 
   <main>
-    <% const _view = (typeof view === 'string' && view) ? view : 'partials/home'; %>
-    <%- include(_view) %>
+    <%- include(view) %>
   </main>
+
+  <footer>
+    <p>&copy; 2025 WebStream Manager</p>
+  </footer>
+
+  <script src="/static/nav.js"></script>
   <script src="/static/uploader.js"></script>
   <script src="/static/preview.js"></script>
-  <script src="/static/nav.js"></script>
+  <% if (page === 'library') { %>
+    <script src="/static/library-search.js"></script>
+  <% } %>
 </body>
 </html>

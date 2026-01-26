@@ -41,11 +41,11 @@ router.post('/upload', upload.array('files', 50), (req, res) => {
 });
 
 // Supprimer un fichier de la bibliothèque
-router.post('/delete', express.json(), (req, res) => {
+router.post('/delete', express.json(), async (req, res) => {
   const { file } = req.body || {};
   if (!file) return res.status(400).json({ error: 'FILE_REQUIRED' });
   try {
-    deleteLibraryFile(file);
+    await deleteLibraryFile(file);
     return res.json({ ok: true });
   } catch (e) {
     if (e.message === 'FILE_IN_USE') return res.status(409).json({ error: 'FILE_IN_USE' });
