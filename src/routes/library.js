@@ -3,7 +3,8 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { listLibraryFiles } from '../store.js';
-import { deleteLibraryFile } from '../store.js'; // ajout
+import { deleteLibraryFile } from '../store.js';
+import { requireWrite } from '../permissions.js';
 import { fileURLToPath } from 'url';
 
 const router = express.Router();
@@ -35,12 +36,12 @@ router.get('/', (req, res) => {
     files
   });
 });
-
+router.post('/upload', requireWrite, upload.array('files', 50), (req, res) => {
 router.post('/upload', upload.array('files', 50), (req, res) => {
   res.redirect('/library');
 });
 
-// Supprimer un fichier de la bibliothèque
+router.post('/delete', requireWrite, express.json(), async (req, res) => {
 router.post('/delete', express.json(), async (req, res) => {
   const { file } = req.body || {};
   if (!file) return res.status(400).json({ error: 'FILE_REQUIRED' });

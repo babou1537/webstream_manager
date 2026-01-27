@@ -22,7 +22,8 @@ public class PauseScreenMixin extends Screen {
         int buttonWidth = 204;
         int buttonHeight = 20;
         int centerX = this.width / 2 - buttonWidth / 2;
-        int buttonY = this.height / 4 + 96;
+        // Positionner le bouton en bas, au-dessus du bouton Disconnect
+        int buttonY = this.height / 4 + 120 + 24;
 
         this.addDrawableChild(
             ButtonWidget.builder(

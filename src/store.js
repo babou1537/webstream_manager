@@ -7,35 +7,55 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const dbPath = path.join(__dirname, 'db', 'webstream.db');
+let dbPath = path.join(__dirname, 'db', 'webstream.db');
 const libraryDir = path.resolve(__dirname, '..', 'storage', 'library');
-
-fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-fs.mkdirSync(libraryDir, { recursive: true });
 
 // Promise-based database handle
 let db;
+let dbInitialized = false;
+
+// Fonction pour définir le chemin de la base de données
+export function setDatabasePath(newPath) {
+  if (dbInitialized) {
+    console.warn('[Store] Database already initialized, cannot change path');
+    return;
+  }
+  dbPath = newPath;
+  console.log(`[Store] Database path set to: ${dbPath}`);
+
+  // Créer le répertoire parent si nécessaire
+  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+}
+
+// Créer le répertoire de la bibliothèque
+fs.mkdirSync(libraryDir, { recursive: true });
+
 async function getDb() {
   if (!db) {
     db = await open({ filename: dbPath, driver: sqlite3.Database });
+    await initializeDatabase();
+    dbInitialized = true;
   }
   return db;
 }
 
 // Debug helpers (via variables d'env)
 const dbg = (...a) => { if (process.env.WSM_DEBUG === '1') console.log('[DB]', ...a); };
-// Log des requêtes SQL si demandé
-if (process.env.WSM_DEBUG_SQL === '1') {
-  const _prepare = db.prepare.bind(db);
-  db.prepare = (sql) => {
-    console.log('[SQL]', sql.trim().replace(/\s+/g, ' '));
-    return _prepare(sql);
-  };
-}
 
-// Création des tables si absentes
-await (async () => {
+// Fonction d'initialisation de la base de données
+async function initializeDatabase() {
   const database = await getDb();
+
+  // Log des requêtes SQL si demandé
+  if (process.env.WSM_DEBUG_SQL === '1') {
+    const _prepare = database.prepare.bind(database);
+    database.prepare = (sql) => {
+      console.log('[SQL]', sql.trim().replace(/\s+/g, ' '));
+      return _prepare(sql);
+    };
+  }
+
+  // Création des tables si absentes
   await database.exec(`
     CREATE TABLE IF NOT EXISTS families (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -58,7 +78,9 @@ await (async () => {
       UPDATE screens SET updated_at = datetime('now') WHERE ref = OLD.ref;
     END;
   `);
-})();
+
+  console.log('[Store] Database initialized successfully');
+}
 
 // Familles
 export async function listFamilies() {

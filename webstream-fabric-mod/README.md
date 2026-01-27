@@ -46,7 +46,7 @@
 
 2. **Installer le mod**
    ```
-   Copier webstream-mod-1.0.0.jar dans .minecraft/mods/
+   Copier webstream-mod-1.0.1.jar dans .minecraft/mods/
    ```
 
 3. **Lancer Minecraft**
@@ -120,7 +120,7 @@ npm run dev
 ```bash
 cd webstream-fabric-mod
 gradlew build
-# Le JAR sera dans build/libs/webstream-mod-1.0.0.jar
+# Le JAR sera dans build/libs/webstream-mod-1.0.1.jar
 ```
 
 **Note importante :** La synchronisation entre les deux projets est **automatique** lors du build.

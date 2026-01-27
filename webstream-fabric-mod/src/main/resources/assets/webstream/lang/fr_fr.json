@@ -1,0 +1,13 @@
+{
+  "key.webstream.open": "Ouvrir WebStream Manager",
+  "category.webstream": "WebStream Manager",
+  "text.webstream.button": "📺 WebStream",
+  "text.webstream.enabled": "WebStream Manager activé",
+  "text.webstream.disabled": "WebStream Manager désactivé",
+  "text.webstream.nodejs_not_found": "Node.js non détecté ! Téléchargez-le sur https://nodejs.org",
+  "text.webstream.server_starting": "Démarrage du serveur WebStream...",
+  "text.webstream.server_started": "Serveur WebStream démarré sur http://localhost:%d",
+  "text.webstream.server_stopped": "Serveur WebStream arrêté",
+  "text.webstream.server_error": "Erreur lors du démarrage du serveur WebStream"
+}
+

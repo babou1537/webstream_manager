@@ -15,11 +15,20 @@ public class WebStreamServer {
     private Process npmProcess;
     private Path webstreamDir;
     private boolean isRunning = false;
+    private String worldName = "default";
 
     public WebStreamServer() {
+        // Créer un répertoire dédié pour l'application Node.js extraite du JAR
+        // Utilise "webstream" (pas "webstream_manager") pour éviter les conflits avec le dossier de dev
         this.webstreamDir = FabricLoader.getInstance()
             .getConfigDir()
             .resolve("webstream");
+    }
+
+    public void setWorldName(String worldName) {
+        // Nettoyer le nom du monde pour éviter les caractères invalides dans les chemins
+        this.worldName = worldName.replaceAll("[^a-zA-Z0-9_-]", "_");
+        LOGGER.info("[WebStream] World name set to: {}", this.worldName);
     }
 
     public void start() {
@@ -86,6 +95,18 @@ public class WebStreamServer {
         }
     }
 
+    private boolean isNpmInstalled() {
+        try {
+            Process process = new ProcessBuilder("npm", "--version")
+                .redirectErrorStream(true)
+                .start();
+            process.waitFor(2, TimeUnit.SECONDS);
+            return process.exitValue() == 0;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     private String getNodeVersion() {
         try {
             Process process = new ProcessBuilder("node", "--version")
@@ -118,8 +139,10 @@ public class WebStreamServer {
 
         copyResourceDirectory("webstream-node", webstreamDir);
 
+
         LOGGER.info("[WebStream] Application extracted to: {}", webstreamDir);
     }
+
 
     private void copyResourceDirectory(String resourcePath, Path targetDir) throws IOException {
         var modContainer = FabricLoader.getInstance()
@@ -159,6 +182,18 @@ public class WebStreamServer {
             return;
         }
 
+        // Vérifier si npm est disponible
+        if (!isNpmInstalled()) {
+            LOGGER.error("[WebStream] ========================================");
+            LOGGER.error("[WebStream] npm NOT FOUND in PATH!");
+            LOGGER.error("[WebStream] Dependencies are missing and npm cannot install them.");
+            LOGGER.error("[WebStream] Please run 'npm install' manually in:");
+            LOGGER.error("[WebStream] {}", webstreamDir.toAbsolutePath());
+            LOGGER.error("[WebStream] OR copy node_modules from the webstream_manager directory");
+            LOGGER.error("[WebStream] ========================================");
+            throw new IOException("npm not found and dependencies are missing");
+        }
+
         LOGGER.info("[WebStream] Installing npm dependencies (this may take a moment)...");
 
         ProcessBuilder pb = new ProcessBuilder("npm", "install", "--production")
@@ -194,6 +229,8 @@ public class WebStreamServer {
 
         pb.environment().put("PORT", String.valueOf(WebStreamMod.CONFIG.port));
         pb.environment().put("NODE_ENV", "production");
+        pb.environment().put("WORLD_NAME", this.worldName);
+        pb.environment().put("DATA_DIR", webstreamDir.resolve("data").resolve(this.worldName).toString());
 
         nodeProcess = pb.start();
         isRunning = true;
@@ -233,15 +270,16 @@ public class WebStreamServer {
             String url = "http://localhost:" + WebStreamMod.CONFIG.port;
             String os = System.getProperty("os.name").toLowerCase();
 
-            if (os.contains("win")) {
-                Runtime.getRuntime().exec("rundll32 url.dll,FileProtocolHandler " + url);
-            } else if (os.contains("mac")) {
-                Runtime.getRuntime().exec("open " + url);
-            } else if (os.contains("nix") || os.contains("nux")) {
-                Runtime.getRuntime().exec("xdg-open " + url);
-            }
-
             LOGGER.info("[WebStream] Opening browser: {}", url);
+
+            if (os.contains("win")) {
+                // Utilisation de cmd /c start pour Windows
+                new ProcessBuilder("cmd", "/c", "start", url).start();
+            } else if (os.contains("mac")) {
+                new ProcessBuilder("open", url).start();
+            } else if (os.contains("nix") || os.contains("nux")) {
+                new ProcessBuilder("xdg-open", url).start();
+            }
         } catch (IOException e) {
             LOGGER.error("[WebStream] Failed to open browser", e);
         }

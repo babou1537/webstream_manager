@@ -5,6 +5,10 @@ import {
   createScreen, setScreenFamily, assignContent, unassignContent,
   deleteScreen, setDimensions
 } from '../store.js';
+import { requireWrite } from '../permissions.js';
+import { requireWrite } from '../permissions.js';
+import { requireWrite } from '../permissions.js';
+import { requireWrite } from '../permissions.js';
 
 const router = express.Router();
 
@@ -29,11 +33,11 @@ router.get('/', async (req, res) => {
 function parseNum(v) {
   if (v == null || v === '') return null;
   const n = Number(String(v).replace(',', '.').trim());
-  return Number.isFinite(n) ? n : null;
+router.post('/create', async (req, res) => {
 }
 
 // Créer un écran
-router.post('/create', async (req, res) => {
+router.post('/create', requireWrite, async (req, res) => {
   const { ref, familyId, width, height } = req.body;
   if (!ref) return res.status(400).send('ref required');
   try {
@@ -50,7 +54,7 @@ router.post('/create', async (req, res) => {
   }
 });
 
-// Changer la famille
+router.post('/:ref/family', requireWrite, async (req, res) => {
 router.post('/:ref/family', async (req, res) => {
   console.log('=== POST /family DEBUG ===');
   console.log('Params:', req.params);
@@ -81,7 +85,7 @@ router.post('/:ref/family', async (req, res) => {
     throw e;
   }
 });
-
+router.post('/:ref/assign', requireWrite, async (req, res) => {
 // Assigner contenu
 router.post('/:ref/assign', async (req, res) => {
   try {
@@ -94,7 +98,7 @@ router.post('/:ref/assign', async (req, res) => {
     if (e.message === 'CONTENT_NOT_FOUND') return json ? res.status(404).json({ error: 'CONTENT_NOT_FOUND' }) : res.status(404).send('Contenu introuvable');
     throw e;
   }
-});
+router.post('/:ref/unassign', requireWrite, async (req, res) => {
 
 // Déassigner
 router.post('/:ref/unassign', async (req, res) => {
@@ -108,7 +112,7 @@ router.post('/:ref/unassign', async (req, res) => {
       return res.status(404).send('Écran introuvable');
     }
     throw e;
-  }
+router.post('/:ref/delete', requireWrite, async (req, res) => {
 });
 
 // Supprimer un écran
@@ -123,7 +127,7 @@ router.post('/:ref/delete', async (req, res) => {
       return res.status(404).send('Écran introuvable');
     }
     throw e;
-  }
+router.post('/:ref/dimensions', requireWrite, async (req, res) => {
 });
 
 // Enregistrer dimensions

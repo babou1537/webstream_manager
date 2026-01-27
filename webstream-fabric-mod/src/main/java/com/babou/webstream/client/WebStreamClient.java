@@ -8,6 +8,8 @@ import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import org.lwjgl.glfw.GLFW;
 
+import java.io.IOException;
+
 public class WebStreamClient implements ClientModInitializer {
     private static KeyBinding openWebStreamKey;
 
@@ -18,7 +20,7 @@ public class WebStreamClient implements ClientModInitializer {
         openWebStreamKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
             "key.webstream.open",
             InputUtil.Type.KEYSYM,
-            GLFW.GLFW_KEY_W,
+            GLFW.GLFW_KEY_H,
             "category.webstream"
         ));
 
@@ -40,10 +42,21 @@ public class WebStreamClient implements ClientModInitializer {
     }
 
     public static void openWebStream() {
-        if (WebStreamMod.getServer() != null && WebStreamMod.getServer().isRunning()) {
-            WebStreamMod.getServer().openBrowser();
-        } else {
-            WebStreamMod.LOGGER.warn("[WebStream] Server is not running!");
+        try {
+            String url = "http://localhost:" + WebStreamMod.CONFIG.port;
+            String os = System.getProperty("os.name").toLowerCase();
+
+            WebStreamMod.LOGGER.info("[WebStream] Opening browser: {}", url);
+
+            if (os.contains("win")) {
+                new ProcessBuilder("cmd", "/c", "start", url).start();
+            } else if (os.contains("mac")) {
+                new ProcessBuilder("open", url).start();
+            } else if (os.contains("nix") || os.contains("nux")) {
+                new ProcessBuilder("xdg-open", url).start();
+            }
+        } catch (IOException e) {
+            WebStreamMod.LOGGER.error("[WebStream] Failed to open browser", e);
         }
     }
 }

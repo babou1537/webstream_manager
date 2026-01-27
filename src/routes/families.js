@@ -1,5 +1,6 @@
 import express from 'express';
 import { listFamilies, createFamily, deleteFamily } from '../store.js';
+import { requireWrite } from '../permissions.js';
 
 const router = express.Router();
 
@@ -8,7 +9,7 @@ router.get('/', async (req, res) => {
   res.render('layout', { title: 'Familles', page: 'families', view: 'partials/families', families });
 });
 
-router.post('/create', express.urlencoded({ extended: false }), async (req, res) => {
+router.post('/create', requireWrite, express.urlencoded({ extended: false }), async (req, res) => {
   try {
     await createFamily(req.body.name);
     res.redirect('/families');
@@ -19,7 +20,7 @@ router.post('/create', express.urlencoded({ extended: false }), async (req, res)
   }
 });
 
-router.post('/:id/delete', async (req, res) => {
+router.post('/:id/delete', requireWrite, async (req, res) => {
   try {
     await deleteFamily(Number(req.params.id));
     res.redirect('/families');

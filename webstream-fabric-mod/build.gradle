@@ -52,10 +52,14 @@ task syncNodeApp(type: Copy) {
         into 'webstream-node'
     }
 
+    // Copier node_modules (ajouté pour inclure les dépendances dans le JAR)
+    from('../node_modules') {
+        into 'webstream-node/node_modules'
+    }
+
     into 'src/main/resources'
 
-    // Exclure node_modules et fichiers de dev
-    exclude '**/node_modules/**'
+    // Exclure fichiers de dev uniquement
     exclude '**/.git/**'
     exclude '**/launch_*.bat'
 }
@@ -84,5 +88,8 @@ jar {
     from("LICENSE") {
         rename { "${it}_${base.archivesName.get()}"}
     }
+
+    // Forcer l'inclusion de webstream-node dans le JAR
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 

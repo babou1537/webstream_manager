@@ -2,6 +2,7 @@ package com.babou.webstream;
 
 import com.babou.webstream.config.WebStreamConfig;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,6 +25,13 @@ public class WebStreamMod implements ModInitializer {
 
             // Démarrer le serveur Node.js
             server = new WebStreamServer();
+
+            // Écouter l'événement de démarrage du serveur pour obtenir le nom du monde
+            ServerLifecycleEvents.SERVER_STARTING.register(minecraftServer -> {
+                String worldName = minecraftServer.getSaveProperties().getLevelName();
+                LOGGER.info("[WebStream] Detected world: {}", worldName);
+                server.setWorldName(worldName);
+            });
 
             try {
                 server.start();
