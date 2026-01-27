@@ -63,13 +63,9 @@ task syncNodeApp(type: Copy) {
 // Exécuter syncNodeApp avant processResources
 processResources.dependsOn syncNodeApp
 
-// Ajouter la dépendance pour sourcesJar
-tasks.named('sourcesJar') {
-    dependsOn syncNodeApp
-}
-
 tasks.withType(JavaCompile).configureEach {
     it.options.release = 17
+    it.options.compilerArgs << '-Xlint:deprecation'
 }
 
 java {
@@ -77,6 +73,11 @@ java {
 
     sourceCompatibility = JavaVersion.VERSION_17
     targetCompatibility = JavaVersion.VERSION_17
+}
+
+// Ajouter la dépendance pour sourcesJar après sa création
+tasks.named('sourcesJar') {
+    dependsOn syncNodeApp
 }
 
 jar {

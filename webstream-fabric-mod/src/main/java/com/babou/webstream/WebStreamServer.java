@@ -122,29 +122,32 @@ public class WebStreamServer {
     }
 
     private void copyResourceDirectory(String resourcePath, Path targetDir) throws IOException {
-        Path modJar = FabricLoader.getInstance()
+        var modContainer = FabricLoader.getInstance()
             .getModContainer(WebStreamMod.MOD_ID)
-            .orElseThrow()
-            .getRootPath();
+            .orElseThrow();
 
-        Path sourcePath = modJar.resolve(resourcePath);
+        // Utiliser findPath() au lieu de getRootPath() déprécié
+        var sourcePath = modContainer.findPath(resourcePath);
 
-        if (Files.isDirectory(sourcePath)) {
-            try (Stream<Path> paths = Files.walk(sourcePath)) {
-                paths.forEach(source -> {
+        if (sourcePath.isPresent() && Files.isDirectory(sourcePath.get())) {
+            try (Stream<Path> paths = Files.walk(sourcePath.get())) {
+                Path source = sourcePath.get();
+                paths.forEach(path -> {
                     try {
-                        Path destination = targetDir.resolve(sourcePath.relativize(source).toString());
-                        if (Files.isDirectory(source)) {
+                        Path destination = targetDir.resolve(source.relativize(path).toString());
+                        if (Files.isDirectory(path)) {
                             Files.createDirectories(destination);
                         } else {
                             Files.createDirectories(destination.getParent());
-                            Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING);
+                            Files.copy(path, destination, StandardCopyOption.REPLACE_EXISTING);
                         }
                     } catch (IOException e) {
-                        LOGGER.error("[WebStream] Error copying file: " + source, e);
+                        LOGGER.error("[WebStream] Error copying file: " + path, e);
                     }
                 });
             }
+        } else {
+            LOGGER.warn("[WebStream] Resource directory not found: {}", resourcePath);
         }
     }
 
