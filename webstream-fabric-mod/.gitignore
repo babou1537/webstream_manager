@@ -1,0 +1,32 @@
+# Gradle
+.gradle/
+build/
+out/
+bin/
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.project
+.classpath
+
+# Fabric
+run/
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node.js (dans les ressources)
+src/main/resources/webstream-node/node_modules/
+src/main/resources/webstream-node/package-lock.json
+
+# Autres
+*.log
+*.tmp
+

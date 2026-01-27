@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/x-icon" href="/static/images/game_geek_minecraft_video_watch_icon_183181.ico">
+  <title><%= title %> - WebStream Manager</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-left">
+      <button class="nav-toggle" aria-label="Menu" aria-controls="topbar-links" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+      <img src="/static/images/BaniereMinecraft.svg" alt="Bannière Minecraft" class="banner-img" />
+    </div>
+    <div class="header-right">
+      <div id="clock" class="clock" aria-label="Horloge"></div>
+      <img src="/static/images/server-icon.png" alt="Icône serveur" class="server-icon" />
+    </div>
+  </header>
+
+  <div class="sidenav-backdrop" data-action="close-sidenav"></div>
+  <nav class="sidenav" aria-label="Navigation latérale">
+    <div class="sidenav-links">
+      <a href="/" class="<%= page==='home' ? 'active' : '' %>">Accueil</a>
+      <a href="/library" class="<%= page==='library' ? 'active' : '' %>">Bibliothèque</a>
+      <a href="/screens" class="<%= page==='screens' ? 'active' : '' %>">Écrans</a>
+      <a href="/families" class="<%= page==='families' ? 'active' : '' %>">Familles</a>
+    </div>
+  </nav>
+
+  <main>
+    <%- include(view) %>
+  </main>
+
+  <footer>
+    <p>&copy; 2025 WebStream Manager</p>
+  </footer>
+
+  <script src="/static/nav.js"></script>
+  <script src="/static/uploader.js"></script>
+  <script src="/static/preview.js"></script>
+  <% if (page === 'library') { %>
+    <script src="/static/library-search.js"></script>
+  <% } %>
+</body>
+</html>

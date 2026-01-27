@@ -1,0 +1,96 @@
+<section class="page">
+  <div class="page-header">
+    <h1>Écrans</h1>
+    <button type="button" class="btn-add-screen" id="addScreenBtn">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2Z"/>
+      </svg>
+      Ajouter un écran
+    </button>
+  </div>
+
+  <div class="card_screens">
+    <!-- Filtres en haut -->
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <a class="view-btn <%= mode === 'family' ? 'active' : '' %>" href="/screens?mode=family">Par famille</a>
+        <a class="view-btn <%= mode === 'all' ? 'active' : '' %>" href="/screens?mode=all">Tous</a>
+      </div>
+      <div class="toolbar-right">
+        <a class="manage-btn" href="/families">⚙️ Gérer les familles</a>
+      </div>
+    </div>
+
+    <!-- Contenu filtré -->
+    <div class="content-area">
+      <% if (mode === 'all') { %>
+        <h2>Tous les écrans</h2>
+        <div class="screen-grid">
+          <% if (!screens || screens.length === 0) { %>
+            <p class="muted">Aucun écran</p>
+          <% } %>
+          <% (screens || []).forEach(s => { %>
+            <div class="screen-card">
+              <button type="button"
+                      class="screen-tile"
+                      data-ref="<%= s.ref %>"
+                      data-content="<%= s.content || '' %>"
+                      data-width="<%= s.width ?? '' %>"
+                      data-height="<%= s.height ?? '' %>"
+                      data-family-id="<%= s.family_id ?? '' %>">
+                <div class="sc-frame" style="--w: <%= (s.width ?? 16) %>; --h: <%= (s.height ?? 9) %>;">
+                  <img
+                    src="<%= s.content ? '/content/' + encodeURIComponent(s.content) : '/screens/placeholder/' + Math.round((s.width ?? 16) * 100) + '/' + Math.round((s.height ?? 9) * 100) + '.svg' %>"
+                    alt="<%= s.ref %>" />
+                </div>
+                <div class="sc-meta">
+                  <div class="sc-title"><code><%= s.ref %></code></div>
+                  <div class="sc-sub"><%= s.width ?? '—' %> × <%= s.height ?? '—' %></div>
+                  <div class="sc-family"><%= s.family || 'Sans famille' %></div>
+                </div>
+              </button>
+            </div>
+          <% }) %>
+        </div>
+      <% } else { %>
+        <% if (!screens || screens.length === 0) { %>
+          <p class="muted">Aucune famille</p>
+        <% } %>
+        <% (screens || []).forEach(g => { %>
+          <details class="family-group" open>
+            <summary><strong><%= g.family %></strong> — <%= g.screens.length %> écran(s)</summary>
+            <div class="screen-grid">
+              <% g.screens.forEach(s => { %>
+                <div class="screen-card">
+                  <button type="button"
+                          class="screen-tile"
+                          data-ref="<%= s.ref %>"
+                          data-content="<%= s.content || '' %>"
+                          data-width="<%= s.width ?? '' %>"
+                          data-height="<%= s.height ?? '' %>"
+                          data-family-id="<%= s.family_id ?? '' %>">
+                    <div class="sc-frame" style="--w: <%= (s.width ?? 16) %>; --h: <%= (s.height ?? 9) %>;">
+                      <img
+                        src="<%= s.content ? '/content/' + encodeURIComponent(s.content) : '/screens/placeholder/' + Math.round((s.width ?? 16) * 100) + '/' + Math.round((s.height ?? 9) * 100) + '.svg' %>"
+                        alt="<%= s.ref %>" />
+                    </div>
+                    <div class="sc-meta">
+                      <div class="sc-title"><code><%= s.ref %></code></div>
+                      <div class="sc-sub"><%= s.width ?? '—' %> × <%= s.height ?? '—' %></div>
+                    </div>
+                  </button>
+                </div>
+              <% }) %>
+            </div>
+          </details>
+        <% }) %>
+      <% } %>
+    </div>
+  </div>
+</section>
+
+<!-- Données pour l'overlay (consommées par preview.js) -->
+<div id="screens-data"
+     data-families='<%- JSON.stringify(families || []) %>'
+     data-library='<%- JSON.stringify(libraryFiles || []) %>' hidden>
+</div>

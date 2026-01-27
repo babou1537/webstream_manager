@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "webstream",
+  "version": "${version}",
+  "name": "WebStream Manager",
+  "description": "Gestion d'écrans WebStreaming pour Minecraft - Serveur Node.js intégré",
+  "authors": ["babou1537"],
+  "contact": {
+    "homepage": "https://github.com/babou1537/webstream_manager",
+    "sources": "https://github.com/babou1537/webstream_manager"
+  },
+  "license": "MIT",
+  "icon": "assets/webstream/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["com.babou.webstream.WebStreamMod"],
+    "client": ["com.babou.webstream.client.WebStreamClient"]
+  },
+  "mixins": [
+    "webstream.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.15.0",
+    "minecraft": "1.20.4",
+    "java": ">=17",
+    "fabric-api": "*"
+  }
+}
+

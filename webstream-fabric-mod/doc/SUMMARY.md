@@ -315,7 +315,7 @@ Le serveur écoute sur `localhost` uniquement. Pour accès réseau :
 ## 🎓 Ressources
 
 ### Documentation
-- [README.md](README.md) - Documentation principale
+- [README.md](../README.md) - Documentation principale
 - [BUILD.md](BUILD.md) - Guide de compilation
 - [USAGE.md](USAGE.md) - Guide d'utilisation complet
 - [ARCHITECTURE.md](ARCHITECTURE.md) - Documentation technique

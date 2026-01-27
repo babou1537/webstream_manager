@@ -1,0 +1,87 @@
+plugins {
+    id 'fabric-loom' version '1.5.7'
+    id 'maven-publish'
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+    archivesName = project.archives_base_name
+}
+
+repositories {
+    maven { url 'https://maven.shedaniel.me/' }
+    maven { url 'https://maven.terraformersmc.com/releases/' }
+}
+
+dependencies {
+    // Minecraft et Fabric
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+
+    // Fabric API
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+}
+
+processResources {
+    inputs.property "version", project.version
+
+    filesMatching("fabric.mod.json") {
+        expand "version": project.version
+    }
+}
+
+// Tâche pour synchroniser l'application Node.js depuis le répertoire parent
+task syncNodeApp(type: Copy) {
+    description = 'Synchronise les fichiers Node.js depuis webstream_manager vers les ressources du mod'
+
+    // Copier src/
+    from('../src') {
+        into 'webstream-node/src'
+    }
+
+    // Copier storage/
+    from('../storage') {
+        into 'webstream-node/storage'
+    }
+
+    // Copier package.json
+    from('../package.json') {
+        into 'webstream-node'
+    }
+
+    into 'src/main/resources'
+
+    // Exclure node_modules et fichiers de dev
+    exclude '**/node_modules/**'
+    exclude '**/.git/**'
+    exclude '**/launch_*.bat'
+}
+
+// Exécuter syncNodeApp avant processResources
+processResources.dependsOn syncNodeApp
+
+// Ajouter la dépendance pour sourcesJar
+tasks.named('sourcesJar') {
+    dependsOn syncNodeApp
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.release = 17
+}
+
+java {
+    withSourcesJar()
+
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+jar {
+    from("LICENSE") {
+        rename { "${it}_${base.archivesName.get()}"}
+    }
+}
+
