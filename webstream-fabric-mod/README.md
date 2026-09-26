@@ -119,6 +119,11 @@ cd webstream-fabric-mod
 Le cœur (`core/`) et le serveur web (`web/`) n'utilisent aucune classe Minecraft et sont testés seuls ; `command/`, `net/`, `client/`
 et `WebStreamMod` font le lien avec le jeu. Java 17.
 
+## Identité visuelle
+
+Interface « moniteur rétro-néon » : polices pixel **Pixelify Sans**, **Silkscreen** et **VT323** (SIL Open Font License 1.1, texte dans
+`web/static/fonts/LICENSES.txt`), logo et mire dessinés pour le mod. Tout est embarqué : aucune connexion externe.
+
 ## Licence
 
 MIT — voir [LICENSE](LICENSE).

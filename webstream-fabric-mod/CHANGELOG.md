@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.2.0-beta.1
+
+- **Identité visuelle « moniteur rétro-néon »** : noir profond, néon cyan et magenta, polices pixel embarquées (Pixelify Sans, Silkscreen, VT323 — SIL OFL 1.1),
+  coins « viseur » sur les panneaux, boutons en relief façon pixel, interrupteurs carrés.
+- Les cartes d'écrans deviennent de petits moniteurs (cadre, scanlines légères, voyant vert/orange selon la présence d'une image).
+- Profils = « chaînes » (CH 01, CH 02…) ; le profil actif est « en diffusion ».
+- Nouveau logo en pixel art et nouvelle mire « NO SIGNAL » pour les écrans et profils vides.
+- Aucune ressource externe : tout est embarqué dans le JAR.
+
 ## 2.1.0-beta.1
 
 - **Nouvelle interface** (thème sombre) : barre latérale, changement de profil depuis n'importe quelle page, tableau de bord, notifications,

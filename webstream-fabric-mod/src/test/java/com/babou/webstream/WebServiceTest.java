@@ -151,6 +151,13 @@ class WebServiceTest {
         assertEquals(200, css.statusCode());
         assertTrue(css.headers().firstValue("Content-Type").orElse("").startsWith("text/css"));
         assertEquals(200, getBytes(url("/static/images/icon.png")).statusCode());
+        for (String font : List.of("pixelify-400.woff2", "pixelify-600.woff2", "silkscreen-400.woff2", "vt323-400.woff2")) {
+            HttpResponse<byte[]> f = getBytes(url("/static/fonts/" + font));
+            assertEquals(200, f.statusCode(), font);
+            assertEquals("font/woff2", f.headers().firstValue("Content-Type").orElse(""), font);
+        }
+        assertEquals(200, get(url("/static/fonts/LICENSES.txt")).statusCode(), "les licences des polices sont distribuées avec le mod");
+        assertTrue(css.body().contains("/static/fonts/vt323-400.woff2"));
         assertEquals(404, get(url("/static/inexistant.css")).statusCode());
         assertEquals(404, get(url("/static/%2e%2e/workspace.json")).statusCode());
         assertEquals(404, get(url("/static/images/..%2f..%2fpreview.js")).statusCode());
@@ -227,7 +234,7 @@ class WebServiceTest {
         HttpResponse<String> r = get(url("/screens/placeholder/280/130.svg"));
         assertEquals(200, r.statusCode());
         assertTrue(r.body().startsWith("<svg"));
-        assertTrue(r.body().contains("Aucun contenu"));
+        assertTrue(r.body().contains("NO SIGNAL"));
     }
 
     // ------------------------------------------------------------------ envois de fichiers

@@ -681,6 +681,8 @@ public final class WebService {
         if (n.endsWith(".css")) return "text/css; charset=utf-8";
         if (n.endsWith(".js")) return "text/javascript; charset=utf-8";
         if (n.endsWith(".ico")) return "image/x-icon";
+        if (n.endsWith(".woff2")) return "font/woff2";
+        if (n.endsWith(".txt")) return "text/plain; charset=utf-8";
         return "application/octet-stream";
     }
 
@@ -858,23 +860,25 @@ public final class WebService {
     }
 
     private static String placeholderSvg(int width, int height) {
-        double margin = Math.min(width, height) * 0.05;
-        double rw = width - margin * 2;
-        double rh = height - margin * 2;
-        double font = Math.min(width, height) * 0.04;
-        String graph = String.format(Locale.ROOT, "M%.2f %.2f l%.2f %.2f l%.2f %.2f l%.2f %.2f l%.2f %.2f H%.2fz",
-            margin + rw * 0.1, height - margin * 2,
-            rw * 0.15, -rh * 0.3, rw * 0.15, rh * 0.2, rw * 0.13, -rh * 0.25, rw * 0.2, rh * 0.35,
-            margin + rw * 0.1);
-        return String.format(Locale.ROOT, """
-            <svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d" preserveAspectRatio="none">
-              <defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#1f2937"/><stop offset="1" stop-color="#0f172a"/></linearGradient></defs>
-              <rect width="%d" height="%d" fill="url(#g)"/>
-              <g fill="none" stroke="#334155" stroke-width="2">
-                <rect x="%.2f" y="%.2f" width="%.2f" height="%.2f" rx="10"/>
-                <path d="%s" stroke="#475569" fill="rgba(71, 85, 105, 0.2)"/>
-              </g>
-              <text x="50%%" y="50%%" fill="#94a3b8" font-family="Segoe UI,Roboto,sans-serif" font-size="%.2f" text-anchor="middle" dominant-baseline="middle">Aucun contenu</text>
-            </svg>""", width, height, width, height, width, height, margin, margin, rw, rh, graph, font);
+        String[] bars = {"#c8c8c8", "#c8c800", "#00c8c8", "#00c800", "#c800c8", "#c80000", "#0000c8"};
+        String[] low = {"#0000c8", "#111111", "#c800c8", "#111111", "#00c8c8", "#111111", "#c8c8c8"};
+        double bw = width / 7.0;
+        double top = height * 0.72;
+        double mid = height * 0.86;
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format(Locale.ROOT, "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"%d\" height=\"%d\" viewBox=\"0 0 %d %d\" preserveAspectRatio=\"none\">", width, height, width, height));
+        sb.append(String.format(Locale.ROOT, "<rect width=\"%d\" height=\"%d\" fill=\"#0a0a0a\"/>", width, height));
+        for (int i = 0; i < 7; i++) {
+            sb.append(String.format(Locale.ROOT, "<rect x=\"%.2f\" y=\"0\" width=\"%.2f\" height=\"%.2f\" fill=\"%s\"/>", i * bw, bw + 0.5, top, bars[i]));
+            sb.append(String.format(Locale.ROOT, "<rect x=\"%.2f\" y=\"%.2f\" width=\"%.2f\" height=\"%.2f\" fill=\"%s\"/>", i * bw, top, bw + 0.5, mid - top, low[i]));
+        }
+        double stroke = Math.max(2, Math.min(width, height) / 90.0);
+        sb.append(String.format(Locale.ROOT, "<rect x=\"%.2f\" y=\"%.2f\" width=\"%.2f\" height=\"%.2f\" fill=\"#05080d\" stroke=\"#3df5ff\" stroke-width=\"%.2f\"/>",
+            width * 0.2, height * 0.26, width * 0.6, height * 0.36, stroke));
+        double big = Math.min(width * 0.09, height * 0.16);
+        double small = Math.min(width * 0.035, height * 0.06);
+        sb.append(String.format(Locale.ROOT, "<text x=\"50%%\" y=\"%.2f\" fill=\"#3df5ff\" font-family=\"Consolas,'Courier New',monospace\" font-weight=\"700\" font-size=\"%.2f\" text-anchor=\"middle\">NO SIGNAL</text>", height * 0.44, big));
+        sb.append(String.format(Locale.ROOT, "<text x=\"50%%\" y=\"%.2f\" fill=\"#ff3df2\" font-family=\"Consolas,'Courier New',monospace\" font-size=\"%.2f\" text-anchor=\"middle\">AUCUN CONTENU</text>", height * 0.54, small));
+        return sb.append("</svg>").toString();
     }
 }

@@ -116,7 +116,7 @@ final class Pages {
         if (branding.hasBanner()) {
             sb.append("    <a href=\"/\"><img src=\"/branding/banner\" alt=\"WebStream Manager\" class=\"banner-img\" /></a>\n");
         } else {
-            sb.append("    <a href=\"/\" class=\"brand\"><img src=\"/static/images/icon.png\" alt=\"\" class=\"brand-icon\" /><span>WebStream Manager</span></a>\n");
+            sb.append("    <a href=\"/\" class=\"brand\"><img src=\"/static/images/icon.png\" alt=\"\" class=\"brand-icon\" /><span>WEB<b>STREAM</b></span></a>\n");
         }
         profileSwitch(sb);
         sb.append("    <nav class=\"nav\" aria-label=\"Navigation\">\n");
@@ -142,7 +142,7 @@ final class Pages {
             .append("      <button class=\"nav-toggle\" id=\"navToggle\" aria-label=\"Menu\" aria-controls=\"sidebar\" aria-expanded=\"false\">").append(icon("menu")).append("</button>\n")
             .append("      <strong>").append(esc(ws.activeProfileName())).append("</strong>\n    </header>\n")
             .append("    <main class=\"content\">\n").append(body).append("\n    </main>\n")
-            .append("    <footer class=\"site-foot\">WebStream Manager ").append(esc(version)).append("</footer>\n  </div>\n</div>\n")
+            .append("    <footer class=\"site-foot\">WebStream Manager ").append(esc(version)).append(" // signal ok</footer>\n  </div>\n</div>\n")
             .append("<div class=\"toasts\" id=\"toasts\" aria-live=\"polite\"></div>\n")
             .append("<script src=\"/static/app.js\"></script>\n</body>\n</html>\n");
         return sb.toString();
@@ -158,16 +158,22 @@ final class Pages {
         int screens = ws.listScreens().size();
         sb.append("    <div class=\"profile-switch\" id=\"profileSwitch\">\n")
             .append("      <button type=\"button\" class=\"ps-current\" aria-haspopup=\"true\" aria-expanded=\"false\">\n")
-            .append("        <span class=\"ps-label\">Profil actif</span>\n")
+            .append("        <span class=\"ps-label\">En diffusion</span>\n")
             .append("        <span class=\"ps-name\">").append(esc(ws.activeProfileName())).append("</span>\n")
             .append("        <span class=\"ps-sub\">").append(world == null ? "" : "Monde " + esc(world) + " · ").append(screens).append(" écran(s)</span>\n")
             .append("        <span class=\"ps-caret\">▾</span>\n      </button>\n")
             .append("      <div class=\"ps-menu\" hidden>\n");
+        int channel = 0;
         for (ProfileInfo p : ws.listProfiles()) {
             sb.append("        <button type=\"button\" class=\"ps-item").append(p.active() ? " active" : "").append("\" data-profile-id=\"").append(esc(p.id()))
-                .append("\"><span>").append(esc(p.name())).append("</span><small>").append(p.screenCount()).append(p.active() ? " · actif" : "").append("</small></button>\n");
+                .append("\"><span>").append(esc(p.name())).append("</span><small>").append(channelLabel(++channel)).append("</small></button>\n");
         }
         sb.append("        <a class=\"ps-manage\" href=\"/profiles\">Gérer les profils…</a>\n      </div>\n    </div>\n");
+    }
+
+    /** « CH 01 » : chaque profil est une chaîne que l'on peut diffuser sur les écrans. */
+    static String channelLabel(int n) {
+        return String.format("CH %02d", n);
     }
 
     String notFound(Ctx c) {
@@ -392,13 +398,15 @@ final class Pages {
         }
 
         b.append("<div class=\"profile-grid\">\n");
+        int channel = 0;
         for (ProfileInfo p : list) {
             String id = esc(p.id());
-            b.append("<article class=\"profile-card").append(p.active() ? " active" : "").append("\">\n<div class=\"top\"><div><h3>").append(esc(p.name())).append("</h3>")
+            b.append("<article class=\"profile-card").append(p.active() ? " active" : "").append("\">\n<div class=\"top\"><div><div class=\"channel\">")
+                .append(channelLabel(++channel)).append("</div><h3>").append(esc(p.name())).append("</h3>")
                 .append("<div class=\"profile-meta\" style=\"margin-top:.4rem\"><span class=\"chip chip-muted\">").append(p.screenCount()).append(" écran(s)</span>")
                 .append("<span class=\"chip chip-muted\">").append(p.familyCount()).append(" famille(s)</span>");
             for (String w : p.worlds()) b.append("<span class=\"chip\">Monde ").append(esc(w)).append("</span>");
-            b.append("</div></div>").append(p.active() ? "<span class=\"chip chip-ok\">" + icon("check") + "Actif</span>" : "").append("</div>\n");
+            b.append("</div></div>").append(p.active() ? "<span class=\"chip chip-live\">en diffusion</span>" : "").append("</div>\n");
 
             if (p.previews().isEmpty()) {
                 b.append("<div class=\"mosaic empty-m\">Aucune image</div>\n");
