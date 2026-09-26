@@ -1,0 +1,74 @@
+name: Bug / Signaler un bug
+description: Quelque chose ne fonctionne pas comme prévu / Something does not work as expected
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Merci de prendre le temps de signaler ce problème ! / Thanks for reporting!
+        Pour une faille de sécurité, **n'ouvrez pas d'issue** : voir la politique de sécurité. / For a security issue, do **not** open an issue: see the security policy.
+  - type: textarea
+    id: description
+    attributes:
+      label: Que s'est-il passé ? / What happened?
+      description: Ce que vous attendiez et ce qui s'est passé. / What you expected and what happened.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Étapes pour reproduire / Steps to reproduce
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: true
+  - type: input
+    id: mod-version
+    attributes:
+      label: Version de WebStream Manager / Mod version
+      placeholder: 2.2.1-beta.1
+    validations:
+      required: true
+  - type: input
+    id: mc-version
+    attributes:
+      label: Versions de Minecraft, Fabric Loader et Fabric API
+      placeholder: "1.20.4, Fabric Loader 0.15.x, Fabric API 0.9x"
+    validations:
+      required: true
+  - type: input
+    id: webstreamer-version
+    attributes:
+      label: Version de WebStreamer / WebStreamer version
+      placeholder: 1.5.0
+  - type: dropdown
+    id: setup
+    attributes:
+      label: Contexte / Setup
+      options:
+        - Solo
+        - LAN
+        - Serveur dédié / Dedicated server
+        - Autre / Other
+    validations:
+      required: true
+  - type: checkboxes
+    id: public-port
+    attributes:
+      label: Configuration
+      options:
+        - label: J'utilise le port public / I use the public port
+        - label: J'utilise un mot de passe d'administration / I use an admin password
+        - label: J'utilise un tunnel ou un proxy / I use a tunnel or reverse proxy
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / Logs
+      description: Contenu utile de `logs/latest.log`. Retirez mots de passe et adresses privées. / Relevant part of `logs/latest.log`. Remove passwords and private addresses.
+      render: text
+  - type: textarea
+    id: extra
+    attributes:
+      label: Informations complémentaires / Additional information
+      description: Captures d'écran, autres mods installés... / Screenshots, other installed mods...

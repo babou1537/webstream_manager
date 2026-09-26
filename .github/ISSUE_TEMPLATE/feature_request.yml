@@ -1,0 +1,30 @@
+name: Idée / Feature request
+description: Proposer une amélioration ou une nouvelle fonction / Suggest an improvement or a new feature
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Quel besoin ou quel problème ? / What need or problem?
+      description: Décrivez la situation qui vous manque. / Describe the situation you are missing something in.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Votre idée / Your idea
+      description: Comment cela pourrait fonctionner. / How it could work.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives envisagées / Alternatives considered
+  - type: dropdown
+    id: help
+    attributes:
+      label: Voulez-vous proposer le code ? / Would you like to contribute the code?
+      options:
+        - Non / No
+        - Oui, avec de l'aide / Yes, with some help
+        - Oui / Yes
