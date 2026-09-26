@@ -3,7 +3,8 @@ REM Variables (ajuste ou supprime selon besoin prod)
 set WSM_HTTP_LOG=1
 
 REM Lance le serveur (script "start" = node src/server.js)
-start "WebStream Manager | Prod" cmd /c "npm run start"
+REM start "WebStream Manager | Prod" cmd /c "npm run start"
+start "WebStream Manager | Prod" cmd /k "npm run start"
 
 REM Attente que le serveur réponde sur le port 8282
 echo Démarrage du serveur, patience...

@@ -16,6 +16,14 @@
       <img src="/static/images/BaniereMinecraft.svg" alt="Bannière Minecraft" class="banner-img" />
     </div>
     <div class="header-right">
+      <!-- Indicateur de permissions -->
+      <div class="permission-badge <%= isAdmin ? 'admin' : 'readonly' %>" title="<%= isAdmin ? 'Mode Administrateur' : 'Mode Lecture Seule' %>">
+        <span class="permission-icon"><%= isAdmin ? '🔓' : '🔒' %></span>
+        <span class="permission-text">
+          <%= isAdmin ? 'Admin' : 'Lecture' %>
+        </span>
+        <span class="permission-user">(<%= username %>)</span>
+      </div>
       <div id="clock" class="clock" aria-label="Horloge"></div>
       <img src="/static/images/server-icon.png" alt="Icône serveur" class="server-icon" />
     </div>

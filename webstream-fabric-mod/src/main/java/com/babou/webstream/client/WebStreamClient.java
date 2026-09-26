@@ -35,18 +35,25 @@ public class WebStreamClient implements ClientModInitializer {
                 );
 
                 if (!WebStreamMod.CONFIG.useCtrlModifier || ctrlPressed) {
-                    openWebStream();
+                    // Récupérer le nom du joueur
+                    if (client.player != null) {
+                        String username = client.player.getName().getString();
+                        openWebStream(username);
+                    } else {
+                        openWebStream("guest");
+                    }
                 }
             }
         });
     }
 
-    public static void openWebStream() {
+    public static void openWebStream(String username) {
         try {
-            String url = "http://localhost:" + WebStreamMod.CONFIG.port;
+            // Construire l'URL avec le nom du joueur en paramètre
+            String url = "http://localhost:" + WebStreamMod.CONFIG.port + "?user=" + username;
             String os = System.getProperty("os.name").toLowerCase();
 
-            WebStreamMod.LOGGER.info("[WebStream] Opening browser: {}", url);
+            WebStreamMod.LOGGER.info("[WebStream] Opening browser for user '{}': {}", username, url);
 
             if (os.contains("win")) {
                 new ProcessBuilder("cmd", "/c", "start", url).start();

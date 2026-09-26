@@ -43,15 +43,6 @@
             </PendingDiffInfo>
           </value>
         </entry>
-        <entry key="$PROJECT_DIR$/webstream-fabric-mod/gradle.properties">
-          <value>
-            <PendingDiffInfo>
-              <option name="filePath" value="$PROJECT_DIR$/webstream-fabric-mod/gradle.properties" />
-              <option name="originalContent" value="# Minecraft Properties&#10;minecraft_version=1.20.4&#10;yarn_mappings=1.20.4+build.3&#10;loader_version=0.15.11&#10;&#10;# Mod Properties&#10;mod_version=1.0.1&#10;maven_group=com.babou&#10;archives_base_name=webstream-mod&#10;&#10;# Fabric API&#10;fabric_version=0.95.4+1.20.4&#10;&#10;# Gradle&#10;org.gradle.jvmargs=-Xmx2G&#10;org.gradle.warning.mode=all&#10;&#10;" />
-              <option name="updatedContent" value="# Minecraft Properties&#10;minecraft_version=1.20.4&#10;yarn_mappings=1.20.4+build.3&#10;loader_version=0.15.11&#10;&#10;# Mod Properties&#10;mod_version=1.0.1&#10;maven_group=com.babou&#10;archives_base_name=webstream-mod&#10;&#10;# Fabric API&#10;fabric_version=0.95.4+1.20.4&#10;&#10;# Gradle&#10;org.gradle.jvmargs=-Xmx2G&#10;org.gradle.warning.mode=all&#10;&#10;" />
-            </PendingDiffInfo>
-          </value>
-        </entry>
       </map>
     </option>
   </component>

@@ -40,11 +40,27 @@ task syncNodeApp(type: Copy) {
     // Copier src/
     from('../src') {
         into 'webstream-node/src'
+        // Exclure les données utilisateur
+        exclude '**/db/**'                    // Base de données avec les données
+        exclude '**/*.db'
+        exclude '**/*.db-shm'
+        exclude '**/*.db-wal'
     }
 
-    // Copier storage/
+    // Copier storage/ (structure vide uniquement, pas les fichiers uploadés)
     from('../storage') {
         into 'webstream-node/storage'
+        exclude '**/*.mp4'                    // Vidéos
+        exclude '**/*.png'                    // Images
+        exclude '**/*.jpg'
+        exclude '**/*.jpeg'
+        exclude '**/*.gif'
+        exclude '**/*.svg'
+        exclude '**/*.webp'
+        exclude '**/*.m3u8'                   // Streams
+        exclude '**/*.ts'
+        // Garder seulement les dossiers vides et .gitkeep si présent
+        includeEmptyDirs = true
     }
 
     // Copier package.json
@@ -52,16 +68,18 @@ task syncNodeApp(type: Copy) {
         into 'webstream-node'
     }
 
-    // Copier node_modules (ajouté pour inclure les dépendances dans le JAR)
+    // Copier node_modules (dépendances npm)
     from('../node_modules') {
         into 'webstream-node/node_modules'
     }
 
     into 'src/main/resources'
 
-    // Exclure fichiers de dev uniquement
+    // Exclure fichiers de dev
     exclude '**/.git/**'
     exclude '**/launch_*.bat'
+    exclude '**/*.bak'
+    exclude '**/.DS_Store'
 }
 
 // Exécuter syncNodeApp avant processResources

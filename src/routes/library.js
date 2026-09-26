@@ -37,12 +37,10 @@ router.get('/', (req, res) => {
   });
 });
 router.post('/upload', requireWrite, upload.array('files', 50), (req, res) => {
-router.post('/upload', upload.array('files', 50), (req, res) => {
   res.redirect('/library');
 });
 
 router.post('/delete', requireWrite, express.json(), async (req, res) => {
-router.post('/delete', express.json(), async (req, res) => {
   const { file } = req.body || {};
   if (!file) return res.status(400).json({ error: 'FILE_REQUIRED' });
   try {
