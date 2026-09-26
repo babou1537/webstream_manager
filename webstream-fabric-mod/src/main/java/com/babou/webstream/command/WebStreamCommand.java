@@ -98,7 +98,7 @@ public final class WebStreamCommand {
             src.sendError(Text.literal("Écran « " + ref + " » introuvable dans le profil « " + WebStreamMod.workspace().activeProfileName() + " »."));
             return 0;
         }
-        String link = WebStreamMod.service().baseUrl() + "/" + ref + ".png";
+        String link = WebStreamMod.service().screenUrl(ref);
         src.sendFeedback(() -> Text.literal("Adresse de « " + ref + " » : ").formatted(Formatting.GRAY).append(clickable(link)), false);
         return 1;
     }

@@ -65,7 +65,13 @@ public class WebStreamMod implements ModInitializer {
 
             String version = FabricLoader.getInstance().getModContainer(MOD_ID)
                 .map(c -> c.getMetadata().getVersion().getFriendlyString()).orElse("dev");
-            service = new WebService(workspace, CONFIG.toSettings(), version);
+            service = new WebService(workspace, CONFIG, version);
+            // Les réglages modifiés depuis l'interface sont enregistrés dans config/webstream.json
+            service.setOnSettingsChanged(() -> {
+                Workspace ws = workspace;
+                if (ws != null) ws.setNewWorldMode(CONFIG.newWorldProfile);
+                CONFIG.save();
+            });
             service.start();
         } catch (BindException e) {
             LOGGER.error("[WebStream] Port déjà utilisé ({}). Changez « port » ou « publicPort » dans config/webstream.json.", e.getMessage());

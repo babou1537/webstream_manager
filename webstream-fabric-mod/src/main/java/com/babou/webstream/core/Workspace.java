@@ -45,7 +45,9 @@ public final class Workspace {
 
     public record ScreenGroup(Integer familyId, String family, List<ScreenInfo> screens) {}
 
-    public record ProfileInfo(String id, String name, int screenCount, int familyCount, boolean active, List<String> worlds) {}
+    public record ProfileInfo(String id, String name, int screenCount, int familyCount, boolean active, List<String> worlds, List<String> previews) {}
+
+    public record LibraryFile(String name, long size) {}
 
     private static class State {
         int version = 1;
@@ -57,7 +59,7 @@ public final class Workspace {
     private final Path libraryDir;
     private final Path profilesDir;
     private final Path stateFile;
-    private final String newWorldMode;
+    private volatile String newWorldMode;
 
     private final Map<String, Profile> profiles = new LinkedHashMap<>();
     private final Map<String, String> worlds = new LinkedHashMap<>();
@@ -180,6 +182,11 @@ public final class Workspace {
 
     // ------------------------------------------------------------------ mondes et profils
 
+    /** perWorld ou shared : appliqué à la prochaine ouverture d'un monde encore inconnu. */
+    public void setNewWorldMode(String mode) {
+        this.newWorldMode = MODE_SHARED.equals(mode) ? MODE_SHARED : MODE_PER_WORLD;
+    }
+
     public synchronized String currentWorld() {
         return currentWorld;
     }
@@ -220,7 +227,8 @@ public final class Workspace {
             worlds.forEach((w, id) -> {
                 if (id.equals(p.id)) bound.add(w);
             });
-            out.add(new ProfileInfo(p.id, p.name, p.screens.size(), p.families.size(), p.id.equals(activeId), bound));
+            List<String> previews = p.screens.stream().map(sc -> sc.content).filter(java.util.Objects::nonNull).distinct().limit(4).toList();
+            out.add(new ProfileInfo(p.id, p.name, p.screens.size(), p.families.size(), p.id.equals(activeId), bound, previews));
         }
         return out;
     }
@@ -507,6 +515,29 @@ public final class Workspace {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    /** Fichiers de la bibliothèque avec leur taille en octets. */
+    public List<LibraryFile> listLibraryFilesInfo() {
+        List<LibraryFile> out = new ArrayList<>();
+        for (String name : listLibraryFiles()) {
+            try {
+                out.add(new LibraryFile(name, Files.size(libraryDir.resolve(name))));
+            } catch (IOException e) {
+                // fichier supprimé entre-temps : ignoré
+            }
+        }
+        return out;
+    }
+
+    /** Pour chaque image, les écrans du profil actif qui l'utilisent. */
+    public synchronized Map<String, List<String>> usageByFile() {
+        Map<String, List<String>> usage = new HashMap<>();
+        for (Screen s : active().screens) {
+            if (s.content != null) usage.computeIfAbsent(s.content, k -> new ArrayList<>()).add(s.ref);
+        }
+        usage.values().forEach(l -> l.sort(String.CASE_INSENSITIVE_ORDER));
+        return usage;
     }
 
     public static boolean isAllowedImageName(String name) {

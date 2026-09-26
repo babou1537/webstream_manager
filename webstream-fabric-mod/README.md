@@ -6,6 +6,7 @@ gérer les images de vos écrans. Vous changez l'image dans le navigateur, l'éc
 - **Aucune installation externe** : le serveur web est intégré au mod (Java uniquement, pas de Node.js).
 - **Bibliothèque d'images**, **écrans** avec adresses fixes (`http://…/mon-ecran.png`), **familles** pour les ranger.
 - **Profils** : une configuration (familles + écrans) par monde, ou une seule pour tous, et changement à chaud.
+- **Réglages dans l'interface** : multijoueur, mot de passe, ports… sans éditer de fichier.
 - Fonctionne en **solo**, en **LAN** et sur **serveur dédié**.
 
 ## Installation
@@ -53,15 +54,19 @@ Le mod sépare deux choses :
 | `port` (8282) | interface d'administration | cette machine (ou mot de passe à distance) |
 | `publicPort` (ex. 8283) | **images seulement** | ouvert à tous, sans mot de passe |
 
-1. Dans `config/webstream.json`, mettez `"publicPort": 8283` et `"publicUrl": "http://mon-serveur.fr:8283"`
-   (sur un serveur dédié, `publicPort` est déjà à 8283 par défaut).
-2. Ouvrez / redirigez le port 8283 (box, pare-feu, ou tunnel type playit.gg) : seules les images sont exposées.
-3. Copiez les adresses depuis l'interface : elles utilisent `publicUrl`.
+1. Ouvrez la page **Réglages** : activez « Ouvrir un port public » et renseignez l'**adresse publique** (`http://mon-serveur.fr:8283`).
+   L'assistant propose les adresses de votre réseau local pour jouer en LAN, et le bouton **Tester** vérifie que l'adresse répond.
+2. Ouvrez / redirigez ce port (box, pare-feu, ou tunnel type playit.gg) : seules les images sont exposées.
+3. Copiez les adresses depuis l'interface : elles utilisent l'adresse publique.
+
+Les mêmes options existent dans `config/webstream.json` (voir ci-dessous) ; sur un serveur dédié, `publicPort` vaut 8283 dès la première création du fichier.
 
 L'interface d'administration reste locale. Pour l'utiliser à distance : `"bindAddress": "0.0.0.0"` et un `"adminPassword"`
 (nom d'utilisateur libre), éventuellement `"adminUrl"` pour que la touche des joueurs l'ouvre.
 
 ## Configuration (`config/webstream.json`)
+
+La plupart des options se modifient depuis la page **Réglages** ; le fichier est mis à jour automatiquement.
 
 | Option | Défaut | Rôle |
 |---|---|---|
@@ -77,6 +82,8 @@ L'interface d'administration reste locale. Pour l'utiliser à distance : `"bindA
 | `remoteUrl` | `""` | côté joueur : adresse à ouvrir (prioritaire sur `adminUrl`) |
 | `newWorldProfile` | `perWorld` | `perWorld` ou `shared` |
 | `maxUploadMb` | `64` | taille maximale d'une image |
+| `urlQuery` | `refresh=1` | paramètre ajouté aux adresses copiées (sans le `?`) ; vide = aucun |
+| `placeholderImage` | `false` | `false` : un écran sans image répond 404 (WebStreamer réessaie toutes les 30 s) ; `true` : image « Aucun contenu » |
 
 Fichiers du mod, dans `config/webstream/` : `library/` (images), `profiles/*.json`, `workspace.json` (profil actif, liens monde → profil).
 

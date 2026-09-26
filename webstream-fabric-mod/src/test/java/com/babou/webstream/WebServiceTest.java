@@ -142,7 +142,7 @@ class WebServiceTest {
 
     @Test
     void pagesRenderAndStaticFilesAreServed() throws Exception {
-        for (String p : List.of("/", "/library", "/screens", "/screens?mode=all", "/families", "/profiles", "/data")) {
+        for (String p : List.of("/", "/library", "/screens", "/screens?mode=all", "/families", "/profiles", "/data", "/settings")) {
             HttpResponse<String> r = get(url(p));
             assertEquals(200, r.statusCode(), p);
             assertTrue(r.body().contains("WebStream Manager"), p);
@@ -174,6 +174,8 @@ class WebServiceTest {
         assertEquals(404, getBytes(url("/inconnu.png")).statusCode());
         ws.createScreen("ecran1", null, null, null);
 
+        assertEquals(404, getBytes(url("/ecran1.png")).statusCode(), "sans image : 404 par défaut, WebStreamer réessaie toutes les 30 s");
+        settings.placeholderImage = true;
         HttpResponse<byte[]> placeholder = getBytes(url("/ecran1.png"));
         assertEquals(200, placeholder.statusCode());
         assertEquals("1", placeholder.headers().firstValue("X-WebStream-Placeholder").orElse(""));
@@ -244,7 +246,7 @@ class WebServiceTest {
         HttpResponse<String> ok = multipart("/library/upload", Map.of(), List.of(new Upload("files", "b.png", PNG)));
         assertEquals(303, ok.statusCode());
         assertEquals(2, ws.listLibraryFiles().size());
-        assertTrue(get(url("/library")).body().contains("/content/b.png"));
+        assertTrue(get(url("/library")).body().contains("/thumb/b.png"));
         assertEquals(0, Files.list(root.resolve("tmp")).count(), "aucun fichier temporaire ne doit rester");
     }
 
@@ -458,5 +460,185 @@ class WebServiceTest {
         assertEquals(200, r.statusCode());
         assertEquals(0, r.body().length);
         assertEquals(String.valueOf(PNG.length), r.headers().firstValue("Content-Length").orElse(""));
+    }
+
+    // ------------------------------------------------------------------ miniatures, ping, adresses
+
+    /** Dégradé légèrement bruité : proche d'une capture d'écran (PNG lourd, JPEG réduit léger). */
+    private static void writePng(Path file, int w, int h) throws IOException {
+        java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(w, h, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        Random r = new Random(3);
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int red = Math.min(255, x * 255 / w + r.nextInt(12));
+                int green = Math.min(255, y * 255 / h + r.nextInt(12));
+                int blue = Math.min(255, ((x + y) * 255 / (w + h)) + r.nextInt(12));
+                img.setRGB(x, y, (red << 16) | (green << 8) | blue);
+            }
+        }
+        javax.imageio.ImageIO.write(img, "png", file.toFile());
+    }
+
+    @Test
+    void thumbnailsAreSmallCachedAndFallBackToTheOriginal() throws Exception {
+        Path big = ws.libraryDir().resolve("big.png");
+        writePng(big, 1600, 900);
+        HttpResponse<byte[]> t = getBytes(url("/thumb/big.png"));
+        assertEquals(200, t.statusCode());
+        assertEquals("image/jpeg", t.headers().firstValue("Content-Type").orElse(""));
+        assertTrue(t.body().length < Files.size(big) / 2, "la miniature doit être bien plus légère que l'original");
+        assertEquals(480, javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(t.body())).getWidth());
+        assertEquals(200, javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(getBytes(url("/thumb/big.png?w=200")).body())).getWidth());
+        try (var files = Files.list(root.resolve("cache").resolve("thumbs"))) {
+            assertEquals(2, files.filter(f -> f.toString().endsWith(".jpg")).count());
+        }
+        assertEquals(304, getBytes(url("/thumb/big.png"), "If-None-Match", t.headers().firstValue("ETag").orElseThrow()).statusCode());
+
+        Path small = ws.libraryDir().resolve("small.png");
+        writePng(small, 100, 60);
+        HttpResponse<byte[]> s = getBytes(url("/thumb/small.png"));
+        assertEquals("image/png", s.headers().firstValue("Content-Type").orElse(""));
+        assertArrayEquals(Files.readAllBytes(small), s.body());
+
+        Files.writeString(ws.libraryDir().resolve("vector.svg"), "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"10\" height=\"10\"/>");
+        assertEquals("image/svg+xml", getBytes(url("/thumb/vector.svg")).headers().firstValue("Content-Type").orElse(""));
+
+        assertEquals(404, getBytes(url("/thumb/..%2fworkspace.json")).statusCode());
+        assertEquals(404, getBytes(url("/thumb/absent.png")).statusCode());
+    }
+
+    @Test
+    void pingIsPublicOnBothPorts() throws Exception {
+        assertTrue(get(url("/ping")).body().contains("\"webstream\""));
+        assertTrue(get(publicUrl("/ping")).body().contains("\"webstream\""));
+    }
+
+    @Test
+    void copiedUrlsCarryTheConfiguredQuery() throws Exception {
+        ws.createScreen("s", null, null, null);
+        assertTrue(get(url("/screens")).body().contains("/s.png?refresh=1\""), "refresh=1 par défaut");
+        settings.urlQuery = "";
+        String html = get(url("/screens")).body();
+        assertTrue(html.contains("/s.png\"") && !html.contains("/s.png?"));
+        settings.urlQuery = "nocache=7";
+        assertTrue(get(url("/screens")).body().contains("/s.png?nocache=7\""));
+    }
+
+    @Test
+    void screenWithQueryStringIsServedLikeTheBareUrl() throws Exception {
+        Files.write(ws.libraryDir().resolve("a.png"), PNG);
+        ws.createScreen("s", null, null, null);
+        ws.assignContent("s", "a.png");
+        assertArrayEquals(PNG, getBytes(url("/s.png?refresh=1")).body());
+        assertArrayEquals(PNG, getBytes(publicUrl("/s.png?refresh==1")).body());
+    }
+
+    // ------------------------------------------------------------------ réglages
+
+    /** Formulaire de réglages valide ; chaque « cle=valeur » (valeur non encodée) remplace la valeur par défaut, « !cle » retire la case. */
+    private String settingsForm(String... overrides) {
+        java.util.Map<String, String> m = new java.util.LinkedHashMap<>();
+        m.put("port", String.valueOf(settings.port));
+        m.put("bindAddress", "127.0.0.1");
+        m.put("publicEnabled", "on");
+        m.put("publicPort", String.valueOf(settings.publicPort));
+        m.put("publicBindAddress", "127.0.0.1");
+        m.put("trustLocalhost", "on");
+        m.put("newWorldProfile", "perWorld");
+        m.put("maxUploadMb", "1");
+        m.put("urlQuery", "refresh=1");
+        for (String o : overrides) {
+            if (o.startsWith("!")) m.remove(o.substring(1));
+            else m.put(o.substring(0, o.indexOf('=')), o.substring(o.indexOf('=') + 1));
+        }
+        return m.entrySet().stream()
+            .map(e -> java.net.URLEncoder.encode(e.getKey(), StandardCharsets.UTF_8) + "=" + java.net.URLEncoder.encode(e.getValue(), StandardCharsets.UTF_8))
+            .collect(java.util.stream.Collectors.joining("&"));
+    }
+
+    @Test
+    void settingsAreValidatedSavedAndPersisted() throws Exception {
+        settings.port = web.adminPort();
+        java.util.concurrent.atomic.AtomicInteger saved = new java.util.concurrent.atomic.AtomicInteger();
+        web.setOnSettingsChanged(saved::incrementAndGet);
+
+        HttpResponse<String> page = get(url("/settings"));
+        assertEquals(200, page.statusCode());
+        assertTrue(page.body().contains("Multijoueur") && page.body().contains("name=\"publicUrl\""));
+
+        HttpResponse<String> bad = postForm("/settings", settingsForm("publicUrl=ftp://nope"));
+        assertEquals(400, bad.statusCode());
+        assertTrue(bad.body().contains("http://"));
+        assertEquals("", settings.publicUrl);
+        assertEquals(0, saved.get());
+
+        HttpResponse<String> ok = postForm("/settings", settingsForm("publicUrl=http://mon-serveur.fr:8283"));
+        assertEquals(200, ok.statusCode());
+        assertEquals("http://mon-serveur.fr:8283", settings.publicUrl);
+        assertEquals("refresh=1", settings.urlQuery);
+        assertEquals("secret", settings.adminPassword, "mot de passe laissé vide = inchangé");
+        assertEquals(1, saved.get());
+        assertFalse(settings.placeholderImage);
+        assertTrue(ok.body().contains("Réglages enregistrés"));
+
+        HttpResponse<String> lockout = postForm("/settings", settingsForm("!trustLocalhost", "clearPassword=on"));
+        assertEquals(400, lockout.statusCode());
+        assertTrue(lockout.body().contains("bloquerait"));
+        assertEquals("secret", settings.adminPassword);
+
+        assertEquals(400, postForm("/settings", settingsForm("maxUploadMb=99999")).statusCode());
+        assertEquals(400, postForm("/settings", settingsForm("publicPort=" + settings.port)).statusCode(), "port public = port de l'interface");
+        assertEquals(400, postForm("/settings", settingsForm("urlQuery=a b?c")).statusCode());
+        assertEquals(1, saved.get(), "aucun enregistrement supplémentaire pour des réglages refusés");
+    }
+
+    @Test
+    void changingPortsRestartsWebServerAndRollsBackWhenBusy() throws Exception {
+        settings.port = web.adminPort();
+        int first = publicPort;
+        int second;
+        try (ServerSocket s = new ServerSocket(0)) {
+            second = s.getLocalPort();
+        }
+
+        assertEquals(200, postForm("/settings", settingsForm("publicPort=" + second)).statusCode());
+        awaitPing(second);
+        assertEquals(second, settings.publicPort);
+        assertThrows(java.io.IOException.class, () -> get(publicUrl("/ping")), "l'ancien port public doit être fermé");
+
+        // nouveau port déjà occupé : retour aux réglages précédents
+        try (ServerSocket busy = new ServerSocket(0)) {
+            int taken = busy.getLocalPort();
+            assertEquals(200, postForm("/settings", settingsForm("publicPort=" + taken)).statusCode());
+            long deadline = System.currentTimeMillis() + 8000;
+            while (settings.publicPort != second && System.currentTimeMillis() < deadline) Thread.sleep(100);
+            assertEquals(second, settings.publicPort, "les anciens réglages doivent revenir");
+        }
+        awaitPing(second);
+        assertTrue(get(url("/settings")).body().contains("rétablis"));
+    }
+
+    private void awaitPing(int port) throws Exception {
+        long deadline = System.currentTimeMillis() + 8000;
+        while (true) {
+            try {
+                if (get("http://localhost:" + port + "/ping").statusCode() == 200) return;
+            } catch (java.io.IOException e) {
+                if (System.currentTimeMillis() > deadline) throw e;
+            }
+            Thread.sleep(100);
+        }
+    }
+
+    @Test
+    void connectionTestReportsSuccessAndFailure() throws Exception {
+        HttpResponse<String> ok = postForm("/settings/test", "url=" + java.net.URLEncoder.encode("http://localhost:" + publicPort, StandardCharsets.UTF_8));
+        assertTrue(ok.body().contains("\"ok\":true"), ok.body());
+        HttpResponse<String> down = postForm("/settings/test", "url=" + java.net.URLEncoder.encode("http://localhost:1", StandardCharsets.UTF_8));
+        assertTrue(down.body().contains("\"ok\":false"), down.body());
+        HttpResponse<String> scheme = postForm("/settings/test", "url=ftp%3A%2F%2Fx");
+        assertTrue(scheme.body().contains("http://"));
+        HttpResponse<String> other = postForm("/settings/test", "url=" + java.net.URLEncoder.encode("http://localhost:" + web.adminPort() + "/static", StandardCharsets.UTF_8));
+        assertTrue(other.body().contains("\"ok\":false"));
     }
 }

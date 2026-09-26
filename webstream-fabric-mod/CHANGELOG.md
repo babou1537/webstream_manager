@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.1.0-beta.1
+
+- **Nouvelle interface** (thème sombre) : barre latérale, changement de profil depuis n'importe quelle page, tableau de bord, notifications,
+  édition d'un écran sans « mode crayon » (choix de l'image en cliquant sur une vignette), profils en cartes avec aperçus.
+  Le mécanisme des cartes est conservé : chaque écran garde le ratio de sa résolution (image étirée comme en jeu).
+- **Page Réglages** avec assistant multijoueur : port public, adresse publique (avec suggestion des adresses locales), test de connexion,
+  mot de passe, options. Plus besoin d'éditer `webstream.json` ; les ports se changent à chaud (retour arrière si le nouveau port est occupé).
+- **Vignettes** : la bibliothèque et les cartes chargent des miniatures JPEG en cache au lieu des images en pleine taille (15 Mo -> quelques centaines de Ko).
+- Paramètre d'URL configurable (`refresh=1` par défaut) ajouté aux adresses copiées.
+- Écran sans image : 404 par défaut (WebStreamer réessaie toutes les 30 s et affiche l'image dès qu'elle est assignée) ; l'image « Aucun contenu »
+  est une option (WebStreamer la garde en cache tant que l'adresse ne change pas).
+- Route publique `/ping`, utilisée par le test de connexion.
+- 45 tests automatiques.
+
 ## 2.0.0-beta.2
 
 - Correctif : avec un chemin de configuration relatif (cas d'un serveur), les images de la bibliothèque étaient listées mais refusées (404) ; les écrans affichaient « Aucun contenu ».

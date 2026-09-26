@@ -15,7 +15,15 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.Inet4Address;
+import java.net.NetworkInterface;
 import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
+import java.util.Enumeration;
+import java.util.LinkedHashMap;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -54,12 +62,16 @@ public final class WebService {
     private HttpServer publicServer;
     private ExecutorService executor;
     private byte[] placeholderPng;
+    private final Thumbnails thumbnails;
+    private Runnable onSettingsChanged;
+    private volatile String settingsNotice;
 
     public WebService(Workspace ws, WebSettings settings, String version) {
         this.ws = ws;
         this.settings = settings;
         this.version = version;
         this.tmpDir = ws.rootDir().resolve("tmp");
+        this.thumbnails = new Thumbnails(ws.rootDir().resolve("cache").resolve("thumbs"));
         this.pages = new Pages(ws, settings, version, new Pages.Branding() {
             @Override
             public boolean hasBanner() {
@@ -118,6 +130,11 @@ public final class WebService {
         executor = null;
     }
 
+    /** Appelé après chaque modification des réglages depuis l'interface (pour les enregistrer dans le fichier de config). */
+    public void setOnSettingsChanged(Runnable callback) {
+        this.onSettingsChanged = callback;
+    }
+
     public boolean isRunning() {
         return adminServer != null;
     }
@@ -133,6 +150,11 @@ public final class WebService {
     /** Adresse que les joueurs doivent utiliser dans WebStreamer (publicUrl, sinon adresse locale). */
     public String baseUrl() {
         return pages.baseUrl(null);
+    }
+
+    /** Adresse complète d'un écran, telle qu'à coller dans WebStreamer (avec le paramètre configuré, ex. ?refresh=1). */
+    public String screenUrl(String ref) {
+        return pages.screenUrl(null, ref);
     }
 
     private static String displayHost(String bind) {
@@ -343,8 +365,22 @@ public final class WebService {
             "screens", ws.listScreens().size(),
             "baseUrl", pages.baseUrl(c))));
 
+        r.addPublic("GET", "/ping", c -> c.json(200, Map.of("ok", true, "name", "webstream", "version", version)));
+
         // ---- bibliothèque
         r.add("GET", "/library", c -> libraryPage(c, 200, null));
+        r.add("GET", "/thumb/{file}", c -> {
+            Path src = ws.resolveLibraryFile(c.param("file"));
+            if (src == null) {
+                c.text(404, "Fichier introuvable");
+                return;
+            }
+            Integer asked = parseInt(c.query.get("w"));
+            int width = Math.max(96, Math.min(1024, asked == null ? 480 : asked));
+            Path thumb = thumbnails.get(src, width);
+            c.ex.getResponseHeaders().set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox");
+            serveFile(c, thumb != null ? thumb : src, "no-cache");
+        });
         r.add("POST", "/library/upload", this::uploadLibrary);
         r.add("POST", "/library/delete", c -> {
             String file = c.field("file");
@@ -434,6 +470,11 @@ public final class WebService {
         r.add("POST", "/profiles/{id}/rename", c -> profileAction(c, () -> ws.renameProfile(c.param("id"), c.field("name"))));
         r.add("POST", "/profiles/{id}/delete", c -> profileAction(c, () -> ws.deleteProfile(c.param("id"))));
 
+        // ---- réglages
+        r.add("GET", "/settings", c -> settingsPage(c, 200, settings, List.of(), null));
+        r.add("POST", "/settings", this::saveSettings);
+        r.add("POST", "/settings/test", this::testPublicUrl);
+
         // ---- export / import
         r.add("GET", "/data", c -> dataPage(c, 200, null, null));
         r.add("GET", "/data/export", c -> {
@@ -494,7 +535,7 @@ public final class WebService {
     }
 
     private void libraryPage(Ctx c, int status, String errorHtml) throws IOException {
-        c.html(status, pages.layout(c, "Bibliothèque", "library", pages.library(c, ws.listLibraryFiles(), errorHtml)));
+        c.html(status, pages.layout(c, "Bibliothèque", "library", pages.library(c, ws.listLibraryFilesInfo(), ws.usageByFile(), errorHtml)));
     }
 
     private void dataPage(Ctx c, int status, ImportResult result, String errorHtml) throws IOException {
@@ -594,6 +635,10 @@ public final class WebService {
         Path file = screen.content() == null ? null : ws.resolveLibraryFile(screen.content());
         if (file == null) {
             c.ex.getResponseHeaders().set("Cache-Control", "no-cache");
+            if (!settings.placeholderImage) {
+                c.text(404, "Aucune image assignée à cet écran");
+                return;
+            }
             c.ex.getResponseHeaders().set("X-WebStream-Placeholder", "1");
             c.send(200, "image/png", placeholder());
             return;
@@ -665,6 +710,151 @@ public final class WebService {
             if (Files.isRegularFile(p)) return p;
         }
         return null;
+    }
+
+    // ------------------------------------------------------------------ réglages
+
+    private void settingsPage(Ctx c, int status, WebSettings shown, List<String> errors, String flashKind) throws IOException {
+        c.html(status, pages.layout(c, "Réglages", "settings",
+            pages.settings(c, shown, errors, flashKind, settingsNotice, localAddresses(), !settings.adminPassword.isEmpty())));
+    }
+
+    private static int num(String v, int invalid) {
+        Integer n = parseInt(v);
+        return n == null ? invalid : n;
+    }
+
+    private static String trim(String v) {
+        return v == null ? "" : v.trim();
+    }
+
+    private void persist() {
+        if (onSettingsChanged != null) onSettingsChanged.run();
+    }
+
+    private void saveSettings(Ctx c) throws IOException {
+        Map<String, String> f = c.form();
+        WebSettings next = settings.copy();
+
+        next.port = num(f.get("port"), -1);
+        boolean publicOn = f.containsKey("publicEnabled");
+        next.publicPort = !publicOn ? 0 : (trim(f.get("publicPort")).isEmpty() ? 8283 : num(f.get("publicPort"), -1));
+        next.bindAddress = trim(f.get("bindAddress"));
+        next.publicBindAddress = trim(f.get("publicBindAddress"));
+        if (f.containsKey("clearPassword")) next.adminPassword = "";
+        else if (!trim(f.get("adminPassword")).isEmpty()) next.adminPassword = f.get("adminPassword");
+        next.trustLocalhost = f.containsKey("trustLocalhost");
+        next.publicUrl = trim(f.get("publicUrl"));
+        next.adminUrl = trim(f.get("adminUrl"));
+        next.newWorldProfile = trim(f.get("newWorldProfile"));
+        next.maxUploadMb = num(f.get("maxUploadMb"), -1);
+        next.placeholderImage = f.containsKey("placeholderImage");
+        next.urlQuery = trim(f.get("urlQuery")).replaceFirst("^\\?+", "");
+
+        List<String> errors = new ArrayList<>(next.validate());
+        if (!next.trustLocalhost && next.adminPassword.isEmpty()) {
+            errors.add("Sans mot de passe, désactiver la confiance locale vous bloquerait : définissez d'abord un mot de passe.");
+        }
+        if (!errors.isEmpty()) {
+            next.adminPassword = settings.adminPassword;
+            settingsPage(c, 400, next, errors, null);
+            return;
+        }
+
+        boolean network = next.networkDiffersFrom(settings);
+        WebSettings previous = settings.copy();
+        settings.copyFrom(next);
+        persist();
+        settingsNotice = null;
+        if (network) restartAsync(previous);
+        settingsPage(c, 200, settings, List.of(), network ? "restart" : "saved");
+    }
+
+    /** Redémarre les écoutes réseau (après avoir répondu) ; si les nouveaux ports sont refusés, les anciens réglages reviennent. */
+    private void restartAsync(WebSettings previous) {
+        Thread t = new Thread(() -> {
+            try {
+                Thread.sleep(600);
+            } catch (InterruptedException e) {
+                return;
+            }
+            synchronized (this) {
+                stop();
+                try {
+                    start();
+                    LOGGER.info("[WebStream] Serveur web redémarré avec les nouveaux réglages");
+                } catch (IOException e) {
+                    LOGGER.error("[WebStream] Nouveaux ports inutilisables ({}) : retour aux réglages précédents", e.getMessage());
+                    settings.copyFrom(previous);
+                    persist();
+                    settingsNotice = "Les nouveaux ports n'ont pas pu être utilisés (" + e.getMessage() + ") : les réglages précédents ont été rétablis.";
+                    try {
+                        start();
+                    } catch (IOException e2) {
+                        LOGGER.error("[WebStream] Impossible de relancer le serveur web", e2);
+                    }
+                }
+            }
+        }, "webstream-restart");
+        t.setDaemon(true);
+        t.start();
+    }
+
+    /** Vérifie que l'adresse publique répond, depuis ce serveur (ne prouve pas que le port est ouvert vers Internet). */
+    private void testPublicUrl(Ctx c) throws IOException {
+        String typed = trim(c.field("url"));
+        String configured = typed.isEmpty() ? trim(settings.publicUrl) : typed;
+        if (!configured.isEmpty() && !configured.startsWith("http://") && !configured.startsWith("https://")) {
+            c.json(200, Map.of("ok", false, "url", configured, "message", "L'adresse doit commencer par http:// ou https://."));
+            return;
+        }
+        String base = configured.isEmpty()
+            ? "http://127.0.0.1:" + (settings.publicPort > 0 ? publicPort() : adminPort())
+            : (configured.endsWith("/") ? configured.substring(0, configured.length() - 1) : configured);
+        String url = base + "/ping";
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("url", url);
+        try {
+            HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).followRedirects(HttpClient.Redirect.NEVER).build();
+            HttpResponse<InputStream> r = client.send(HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(4)).GET().build(),
+                HttpResponse.BodyHandlers.ofInputStream());
+            String body;
+            try (InputStream in = r.body()) {
+                body = new String(in.readNBytes(2048), StandardCharsets.UTF_8);
+            }
+            boolean ok = r.statusCode() == 200 && body.contains("\"webstream\"");
+            result.put("ok", ok);
+            result.put("status", r.statusCode());
+            result.put("message", ok ? "Le serveur répond bien à cette adresse."
+                : "Une réponse a été reçue, mais ce n'est pas WebStream (code " + r.statusCode() + ").");
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            result.put("ok", false);
+            result.put("message", "Test interrompu.");
+        } catch (IOException | IllegalArgumentException e) {
+            result.put("ok", false);
+            result.put("message", "Aucune réponse à cette adresse (" + e.getClass().getSimpleName() + ").");
+        }
+        c.json(200, result);
+    }
+
+    /** Adresses IPv4 de cette machine sur le réseau local, pour suggérer une publicUrl. */
+    static List<String> localAddresses() {
+        List<String> out = new ArrayList<>();
+        try {
+            Enumeration<NetworkInterface> nics = NetworkInterface.getNetworkInterfaces();
+            while (nics != null && nics.hasMoreElements()) {
+                NetworkInterface nic = nics.nextElement();
+                if (!nic.isUp() || nic.isLoopback() || nic.isVirtual()) continue;
+                nic.getInterfaceAddresses().forEach(a -> {
+                    if (a.getAddress() instanceof Inet4Address v4 && !v4.isLinkLocalAddress()) out.add(v4.getHostAddress());
+                });
+            }
+        } catch (IOException ignored) {
+            // pas d'interface lisible : aucune suggestion
+        }
+        return out;
     }
 
     private static String placeholderSvg(int width, int height) {
