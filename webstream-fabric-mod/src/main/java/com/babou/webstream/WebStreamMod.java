@@ -58,9 +58,9 @@ public class WebStreamMod implements ModInitializer {
         stop();
         try {
             Path root = FabricLoader.getInstance().getConfigDir().resolve("webstream");
-            workspace = new Workspace(root, CONFIG.newWorldProfile);
+            workspace = new Workspace(root, CONFIG.newWorldProfile, CONFIG.tr("profile.default"));
             workspace.attachWorld(worldName);
-            LOGGER.info("[WebStream] Monde « {} » -> profil « {} »", worldName, workspace.activeProfileName());
+            LOGGER.info("[WebStream] World \"{}\" -> profile \"{}\"", worldName, workspace.activeProfileName());
             warnAboutLegacyInstall(root);
 
             String version = FabricLoader.getInstance().getModContainer(MOD_ID)
@@ -74,10 +74,10 @@ public class WebStreamMod implements ModInitializer {
             });
             service.start();
         } catch (BindException e) {
-            LOGGER.error("[WebStream] Port déjà utilisé ({}). Changez « port » ou « publicPort » dans config/webstream.json.", e.getMessage());
+            LOGGER.error("[WebStream] Port already in use ({}). Change \"port\" or \"publicPort\" in config/webstream.json.", e.getMessage());
             stop();
         } catch (IOException | RuntimeException e) {
-            LOGGER.error("[WebStream] Impossible de démarrer le serveur web", e);
+            LOGGER.error("[WebStream] Could not start the web server", e);
             stop();
         }
     }
@@ -85,7 +85,7 @@ public class WebStreamMod implements ModInitializer {
     private static synchronized void stop() {
         if (service != null) {
             service.stop();
-            LOGGER.info("[WebStream] Serveur web arrêté");
+            LOGGER.info("[WebStream] Web server stopped");
         }
         if (workspace != null) workspace.detachWorld();
         service = null;
@@ -102,9 +102,9 @@ public class WebStreamMod implements ModInitializer {
 
     private static void warnAboutLegacyInstall(Path root) {
         if (Files.exists(root.resolve("node_modules")) || Files.exists(root.resolve("src").resolve("server.js"))) {
-            LOGGER.info("[WebStream] Ancienne installation Node.js détectée dans {} : elle n'est plus utilisée et peut être supprimée "
-                + "(node_modules, src, package.json, data, storage). Votre bibliothèque d'images a été reprise ; "
-                + "pour vos écrans, importez un export .json depuis la page Données.", root);
+            LOGGER.info("[WebStream] Legacy Node.js install found in {}: it is no longer used and can be deleted "
+                + "(node_modules, src, package.json, data, storage). Your image library was carried over; "
+                + "for your screens, import a .json export from the Data page.", root);
         }
     }
 }

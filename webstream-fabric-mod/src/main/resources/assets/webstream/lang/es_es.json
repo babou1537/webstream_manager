@@ -1,0 +1,6 @@
+{
+  "key.webstream.open": "Abrir WebStream Manager",
+  "category.webstream": "WebStream Manager",
+  "text.webstream.button": "📺 WebStream",
+  "text.webstream.no_admin_url": "[WebStream] Este servidor no ha publicado la dirección de la interfaz. Pídela a un operador (/webstream admin) o indica «remoteUrl» en config/webstream.json."
+}

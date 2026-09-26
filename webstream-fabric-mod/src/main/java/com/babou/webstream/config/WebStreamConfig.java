@@ -20,7 +20,7 @@ import java.nio.file.Path;
 public class WebStreamConfig extends WebSettings {
     private static final Logger LOGGER = LoggerFactory.getLogger("webstream");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
-    private static final int CURRENT_VERSION = 3;
+    private static final int CURRENT_VERSION = 4;
 
     /** 0 = fichier créé par une version antérieure (avant l'ajout de cette option). */
     public int configVersion = 0;

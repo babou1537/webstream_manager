@@ -3,6 +3,14 @@
   'use strict';
 
   var body = document.body;
+  var I18N = window.WS_I18N || {};
+  /** Texte traduit ; les paramètres {0}, {1}… sont remplacés par les arguments suivants. */
+  function t(key) {
+    var s = I18N[key];
+    if (s == null) s = key;
+    for (var i = 1; i < arguments.length; i++) s = s.split('{' + (i - 1) + '}').join(arguments[i]);
+    return s;
+  }
   function $(sel, root) { return (root || document).querySelector(sel); }
   function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
   function esc(s) {
@@ -32,21 +40,15 @@
   function toast(message, kind) {
     var box = $('#toasts');
     if (!box) return;
-    var t = document.createElement('div');
-    t.className = 'toast ' + (kind || 'ok');
-    t.textContent = message;
-    box.appendChild(t);
+    var el = document.createElement('div');
+    el.className = 'toast ' + (kind || 'ok');
+    el.textContent = message;
+    box.appendChild(el);
     setTimeout(function () {
-      t.classList.add('leaving');
-      setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 300);
+      el.classList.add('leaving');
+      setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 300);
     }, kind === 'error' ? 6000 : 2600);
   }
-
-  var ERRORS = {
-    SCREEN_NOT_FOUND: 'Écran introuvable.', FAMILY_NOT_FOUND: 'Famille introuvable.', CONTENT_NOT_FOUND: 'Image introuvable dans la bibliothèque.',
-    FILE_IN_USE: 'Cette image est assignée à un écran : retirez-la d\'abord.', FILE_NOT_FOUND: 'Fichier introuvable.', BAD_DIMENSIONS: 'Dimensions invalides (nombre entre 0 et 1000).',
-    PROFILE_NOT_FOUND: 'Profil introuvable.', BAD_PATH: 'Nom de fichier invalide.'
-  };
 
   function api(path, opts) {
     opts = opts || {};
@@ -69,15 +71,15 @@
       });
     });
   }
-  function failToast(e) { toast(ERRORS[e.code] || 'Une erreur est survenue.', 'error'); }
+  function failToast(e) { toast(e.code && I18N['err.' + e.code] ? t('err.' + e.code) : t('js.generic'), 'error'); }
 
   function copyText(text, button) {
-    function done() { toast('Adresse copiée', 'ok'); if (button) { button.classList.add('copied'); setTimeout(function () { button.classList.remove('copied'); }, 900); } }
+    function done() { toast(t('js.copied'), 'ok'); if (button) { button.classList.add('copied'); setTimeout(function () { button.classList.remove('copied'); }, 900); } }
     function fallback() {
       var ta = document.createElement('textarea');
       ta.value = text; ta.style.position = 'fixed'; ta.style.left = '-9999px';
       document.body.appendChild(ta); ta.select();
-      try { document.execCommand('copy'); done(); } catch (e) { toast('Copie impossible : ' + text, 'error'); }
+      try { document.execCommand('copy'); done(); } catch (e) { toast(t('js.copyFail', text), 'error'); }
       document.body.removeChild(ta);
     }
     if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(done, fallback);
@@ -97,7 +99,7 @@
 
     var clock = $('#clock');
     if (clock) {
-      var tick = function () { clock.textContent = new Date().toLocaleTimeString('fr-FR', { hour12: false }); };
+      var tick = function () { clock.textContent = new Date().toLocaleTimeString(document.documentElement.lang || undefined, { hour12: false }); };
       tick(); setInterval(tick, 1000);
     }
 
@@ -137,7 +139,7 @@
     if (cond) {
       var parts = cond.dataset.confirmIf.split('=');
       var field = cond.form && cond.form.elements[parts[0]];
-      if (field && field.value === parts[1] && !window.confirm(cond.dataset.confirmText || 'Confirmer ?')) e.preventDefault();
+      if (field && field.value === parts[1] && !window.confirm(cond.dataset.confirmText || t('js.confirm'))) e.preventDefault();
     }
   });
   document.addEventListener('submit', function (e) {
@@ -201,7 +203,7 @@
     var input = $('#fileInput'), zone = $('#dropzone'), prog = $('#uploadProgress');
     function upload(files) {
       var list = Array.prototype.filter.call(files, function (f) { return /\.(png|jpe?g|gif|webp|bmp|tiff?|svg)$/i.test(f.name); });
-      if (!list.length) { toast('Aucune image valide dans la sélection.', 'error'); return; }
+      if (!list.length) { toast(t('js.noValidImage'), 'error'); return; }
       var fd = new FormData();
       list.forEach(function (f) { fd.append('files', f, f.name); });
       var xhr = new XMLHttpRequest();
@@ -213,13 +215,13 @@
       xhr.onload = function () {
         var data = {}; try { data = JSON.parse(xhr.responseText); } catch (e) { /* ignoré */ }
         prog.hidden = true;
-        if (xhr.status === 200) { toast((data.stored || list.length) + ' image(s) envoyée(s)', 'ok'); setTimeout(function () { location.reload(); }, 500); }
+        if (xhr.status === 200) { toast(t('js.uploaded', data.stored || list.length), 'ok'); setTimeout(function () { location.reload(); }, 500); }
         else if (data.rejected && data.rejected.length) {
-          toast('Refusé : ' + data.rejected.join(', '), 'error');
+          toast(t('js.rejected', data.rejected.join(', ')), 'error');
           if (data.stored) setTimeout(function () { location.reload(); }, 1500);
-        } else toast(xhr.status === 413 ? 'Fichier trop volumineux.' : 'Envoi impossible.', 'error');
+        } else toast(xhr.status === 413 ? t('js.tooLarge') : t('js.uploadFail'), 'error');
       };
-      xhr.onerror = function () { prog.hidden = true; toast('Envoi interrompu.', 'error'); };
+      xhr.onerror = function () { prog.hidden = true; toast(t('js.uploadInterrupted'), 'error'); };
       xhr.send(fd);
     }
     var pick = function () { input.click(); };
@@ -242,16 +244,16 @@
       var title = '<span class="name">' + esc(file) + '</span><span class="muted">' + esc(item.dataset.size || '') + '</span>';
       var usedHtml = used.length
         ? '<div class="used-list">' + used.map(function (r) { return '<code>' + esc(r) + '</code>'; }).join('') + '</div>'
-        : '<p class="muted">Aucun écran du profil actif n\'utilise cette image.</p>';
+        : '<p class="muted">' + esc(t('js.notUsed')) + '</p>';
       var html = '<div class="preview-stage"><div class="preview-frame natural"><img alt="' + esc(file) + '" src="/content/' + encodeURIComponent(file) + '" /></div></div>'
-        + '<div class="side"><section><h4>Utilisée par</h4>' + usedHtml + '</section>'
-        + '<section><h4>Fichier</h4><div class="form-row"><a class="btn btn-sm" href="/content/' + encodeURIComponent(file) + '" download="' + esc(file) + '">' + icon('download') + 'Télécharger</a></div></section>'
-        + '<div class="danger-zone"><button type="button" class="btn btn-danger" id="delImage">' + icon('trash') + 'Supprimer de la bibliothèque</button></div></div>';
+        + '<div class="side"><section><h4>' + esc(t('js.usedBy')) + '</h4>' + usedHtml + '</section>'
+        + '<section><h4>' + esc(t('js.file')) + '</h4><div class="form-row"><a class="btn btn-sm" href="/content/' + encodeURIComponent(file) + '" download="' + esc(file) + '">' + icon('download') + esc(t('js.download')) + '</a></div></section>'
+        + '<div class="danger-zone"><button type="button" class="btn btn-danger" id="delImage">' + icon('trash') + esc(t('js.deleteFromLib')) + '</button></div></div>';
       var m = openModal('libraryModal', title, html, false);
       $('#delImage', m).addEventListener('click', function () {
-        if (!window.confirm('Supprimer « ' + file + ' » de la bibliothèque ?')) return;
+        if (!window.confirm(t('js.confirmDeleteImage', file))) return;
         api('/library/delete', { json: { file: file } }).then(function () {
-          item.parentNode.removeChild(item); closeModal(); toast('Image supprimée', 'ok');
+          item.parentNode.removeChild(item); closeModal(); toast(t('js.imageDeleted'), 'ok');
         }, failToast);
       });
     }
@@ -279,7 +281,7 @@
     });
 
     function famOptions(selected) {
-      return '<option value="">— Aucune —</option>' + families.map(function (f) {
+      return '<option value="">' + esc(t('js.none')) + '</option>' + families.map(function (f) {
         return '<option value="' + f.id + '"' + (String(f.id) === String(selected || '') ? ' selected' : '') + '>' + esc(f.name) + '</option>';
       }).join('');
     }
@@ -289,14 +291,14 @@
     var add = $('#addScreenBtn');
     if (add) add.addEventListener('click', function () {
       var html = '<div class="side" style="grid-column:1/-1"><form class="side" method="post" action="/screens/create">'
-        + '<label class="field">Nom de l\'écran<input name="ref" required maxlength="64" placeholder="metro-station-1" autofocus />'
-        + '<span class="hint">Il devient l\'adresse de l\'écran. Accents et espaces sont remplacés automatiquement.</span></label>'
-        + '<label class="field">Famille<select name="familyId">' + famOptions('') + '</select></label>'
-        + '<div class="form-grid"><label class="field">Largeur (blocs)<input name="width" type="number" step="0.1" min="0.1" placeholder="16" /></label>'
-        + '<label class="field">Hauteur (blocs)<input name="height" type="number" step="0.1" min="0.1" placeholder="9" /></label></div>'
-        + '<p class="hint">La résolution (largeur × hauteur) sert à afficher l\'image avec les bonnes proportions.</p>'
-        + '<div class="form-row"><button class="btn btn-primary" type="submit">Créer l\'écran</button><button class="btn" type="button" data-close>Annuler</button></div></form></div>';
-      var m = openModal('screenModal', '<span class="name">Nouvel écran</span>', html, true);
+        + '<label class="field">' + esc(t('js.screenName')) + '<input name="ref" required maxlength="64" placeholder="metro-station-1" autofocus />'
+        + '<span class="hint">' + esc(t('js.screenNameHint')) + '</span></label>'
+        + '<label class="field">' + esc(t('js.family')) + '<select name="familyId">' + famOptions('') + '</select></label>'
+        + '<div class="form-grid"><label class="field">' + esc(t('js.width')) + '<input name="width" type="number" step="0.1" min="0.1" placeholder="16" /></label>'
+        + '<label class="field">' + esc(t('js.height')) + '<input name="height" type="number" step="0.1" min="0.1" placeholder="9" /></label></div>'
+        + '<p class="hint">' + esc(t('js.resolutionHint')) + '</p>'
+        + '<div class="form-row"><button class="btn btn-primary" type="submit">' + esc(t('js.createScreen')) + '</button><button class="btn" type="button" data-close>' + esc(t('js.cancel')) + '</button></div></form></div>';
+      var m = openModal('screenModal', '<span class="name">' + esc(t('js.newScreen')) + '</span>', html, true);
       var first = $('input[name=ref]', m); if (first) first.focus();
     });
 
@@ -309,24 +311,24 @@
 
       var title = '<span class="name"><code>' + esc(ref) + '</code></span>'
         + '<div class="url-row"><div class="copybox" style="flex:1;min-width:0"><code>' + esc(url) + '</code>'
-        + '<button type="button" class="btn btn-sm" data-copy="' + esc(url) + '">' + icon('copy') + 'Copier</button></div></div>';
+        + '<button type="button" class="btn btn-sm" data-copy="' + esc(url) + '">' + icon('copy') + esc(t('js.copy')) + '</button></div></div>';
 
       var html = '<div><div class="preview-stage"><div class="preview-frame" id="pvFrame" style="--w:' + (st.width || 16) + ';--h:' + (st.height || 9) + '">'
         + '<img id="pvImg" alt="" src="' + (st.content ? '/content/' + encodeURIComponent(st.content) : placeholder(num(st.width), num(st.height))) + '" /></div></div>'
         + '<p class="stage-note" id="pvNote"></p>'
-        + '<div class="form-row" style="justify-content:center;margin-top:.4rem"><button type="button" class="btn btn-sm btn-ghost" id="pvToggle">Voir en proportions d\'origine</button></div></div>'
+        + '<div class="form-row" style="justify-content:center;margin-top:.4rem"><button type="button" class="btn btn-sm btn-ghost" id="pvToggle">' + esc(t('js.viewOriginal')) + '</button></div></div>'
         + '<div class="side">'
-        + '<section><h4>Image affichée</h4><div class="searchbox"><input type="search" id="pickSearch" placeholder="Chercher une image…" autocomplete="off" />' + icon('search') + '</div>'
+        + '<section><h4>' + esc(t('js.imageShown')) + '</h4><div class="searchbox"><input type="search" id="pickSearch" placeholder="' + esc(t('js.searchImage')) + '" autocomplete="off" />' + icon('search') + '</div>'
         + '<div class="picker" id="picker">' + library.map(function (f) {
           return '<button type="button" class="pick' + (f === st.content ? ' current' : '') + '" data-file="' + esc(f) + '" title="' + esc(f) + '">'
             + '<img loading="lazy" decoding="async" alt="' + esc(f) + '" src="/thumb/' + encodeURIComponent(f) + '?w=240" /></button>';
-        }).join('') + (library.length ? '' : '<p class="muted">La bibliothèque est vide.</p>') + '</div>'
-        + '<div class="form-row"><span class="muted" id="curFile"></span><button type="button" class="btn btn-sm" id="unassign">Retirer l\'image</button></div></section>'
-        + '<section><h4>Famille</h4><select id="famSel">' + famOptions(st.familyId) + '</select></section>'
-        + '<section><h4>Résolution</h4><div class="dim-row"><input id="dimW" type="number" step="0.1" min="0.1" value="' + esc(st.width || '') + '" placeholder="L" aria-label="Largeur" />'
-        + '<span>×</span><input id="dimH" type="number" step="0.1" min="0.1" value="' + esc(st.height || '') + '" placeholder="H" aria-label="Hauteur" />'
-        + '<button type="button" class="btn btn-sm btn-primary" id="dimSave">Enregistrer</button></div></section>'
-        + '<div class="danger-zone"><button type="button" class="btn btn-danger" id="delScreen">' + icon('trash') + 'Supprimer l\'écran</button></div></div>';
+        }).join('') + (library.length ? '' : '<p class="muted">' + esc(t('js.libraryEmpty')) + '</p>') + '</div>'
+        + '<div class="form-row"><span class="muted" id="curFile"></span><button type="button" class="btn btn-sm" id="unassign">' + esc(t('js.removeImage')) + '</button></div></section>'
+        + '<section><h4>' + esc(t('js.family')) + '</h4><select id="famSel">' + famOptions(st.familyId) + '</select></section>'
+        + '<section><h4>' + esc(t('js.resolution')) + '</h4><div class="dim-row"><input id="dimW" type="number" step="0.1" min="0.1" value="' + esc(st.width || '') + '" placeholder="' + esc(t('js.widthShort')) + '" aria-label="' + esc(t('js.widthAria')) + '" />'
+        + '<span>×</span><input id="dimH" type="number" step="0.1" min="0.1" value="' + esc(st.height || '') + '" placeholder="' + esc(t('js.heightShort')) + '" aria-label="' + esc(t('js.heightAria')) + '" />'
+        + '<button type="button" class="btn btn-sm btn-primary" id="dimSave">' + esc(t('js.save')) + '</button></div></section>'
+        + '<div class="danger-zone"><button type="button" class="btn btn-danger" id="delScreen">' + icon('trash') + esc(t('js.deleteScreen')) + '</button></div></div>';
 
       var m = openModal('screenModal', title, html, false);
       var frame = $('#pvFrame', m), img = $('#pvImg', m), note = $('#pvNote', m), cur = $('#curFile', m);
@@ -335,9 +337,9 @@
         frame.style.setProperty('--w', st.width || 16);
         frame.style.setProperty('--h', st.height || 9);
         img.src = st.content ? '/content/' + encodeURIComponent(st.content) : placeholder(num(st.width), num(st.height));
-        cur.textContent = st.content || 'Aucune image';
+        cur.textContent = st.content || t('js.noImage');
         $('#unassign', m).disabled = !st.content;
-        note.textContent = 'Affichage en jeu : image étirée à ' + (st.width || '—') + ' × ' + (st.height || '—') + ' (proportions de l\'écran).';
+        note.textContent = t('js.stageNote', st.width || '—', st.height || '—');
         $$('.pick', m).forEach(function (p) { p.classList.toggle('current', p.dataset.file === st.content); });
       }
       function refreshTile() {
@@ -348,20 +350,20 @@
         var sub = $('.sc-sub', tile); if (sub) sub.textContent = (st.width || '—') + ' × ' + (st.height || '—');
         var status = $('.tile-status', card);
         status.className = 'tile-status chip ' + (st.content ? 'chip-ok' : 'chip-warn');
-        status.textContent = st.content ? 'image' : 'sans image';
+        status.textContent = st.content ? t('js.statusImage') : t('js.statusNone');
       }
       refreshView();
 
       $('#pvToggle', m).addEventListener('click', function () {
         var natural = frame.classList.toggle('natural');
-        this.textContent = natural ? 'Voir avec les proportions de l\'écran' : 'Voir en proportions d\'origine';
+        this.textContent = natural ? t('js.viewScreen') : t('js.viewOriginal');
         note.hidden = natural;
       });
 
       $('#picker', m).addEventListener('click', function (e) {
         var p = e.target.closest('.pick'); if (!p) return;
         api('/screens/' + encodeURIComponent(ref) + '/assign', { form: { file: p.dataset.file } }).then(function () {
-          st.content = p.dataset.file; refreshView(); refreshTile(); toast('Image assignée', 'ok');
+          st.content = p.dataset.file; refreshView(); refreshTile(); toast(t('js.imageAssigned'), 'ok');
         }, failToast);
       });
       $('#pickSearch', m).addEventListener('input', function () {
@@ -370,26 +372,26 @@
       });
       $('#unassign', m).addEventListener('click', function () {
         api('/screens/' + encodeURIComponent(ref) + '/unassign').then(function () {
-          st.content = ''; refreshView(); refreshTile(); toast('Image retirée', 'ok');
+          st.content = ''; refreshView(); refreshTile(); toast(t('js.imageRemoved'), 'ok');
         }, failToast);
       });
       $('#famSel', m).addEventListener('change', function () {
         var v = this.value;
         api('/screens/' + encodeURIComponent(ref) + '/family', { form: { familyId: v } }).then(function () {
-          st.familyId = v; refreshTile(); modal.dataset.reloadOnClose = '1'; toast('Famille modifiée', 'ok');
+          st.familyId = v; refreshTile(); modal.dataset.reloadOnClose = '1'; toast(t('js.familyChanged'), 'ok');
         }, failToast);
       });
       $('#dimSave', m).addEventListener('click', function () {
         var w = num($('#dimW', m).value), h = num($('#dimH', m).value);
-        if (!(w > 0) || !(h > 0)) { toast('Indiquez une largeur et une hauteur positives.', 'error'); return; }
+        if (!(w > 0) || !(h > 0)) { toast(t('js.dimsInvalid'), 'error'); return; }
         api('/screens/' + encodeURIComponent(ref) + '/dimensions', { form: { width: fmt(w), height: fmt(h) } }).then(function () {
-          st.width = fmt(w); st.height = fmt(h); refreshView(); refreshTile(); toast('Résolution enregistrée', 'ok');
+          st.width = fmt(w); st.height = fmt(h); refreshView(); refreshTile(); toast(t('js.dimsSaved'), 'ok');
         }, failToast);
       });
       $('#delScreen', m).addEventListener('click', function () {
-        if (!window.confirm('Supprimer l\'écran « ' + ref + ' » ?')) return;
+        if (!window.confirm(t('js.confirmDeleteScreen', ref))) return;
         api('/screens/' + encodeURIComponent(ref) + '/delete').then(function () {
-          card.parentNode.removeChild(card); closeModal(); toast('Écran supprimé', 'ok');
+          card.parentNode.removeChild(card); closeModal(); toast(t('js.screenDeleted'), 'ok');
         }, failToast);
       });
     }
@@ -404,11 +406,11 @@
   function runTest(url, out, button) {
     if (button) button.disabled = true;
     out.className = 'test-result muted';
-    out.textContent = 'Test en cours…';
+    out.textContent = t('js.testRunning');
     api('/settings/test', { form: { url: url || '' } }).then(function (r) {
       out.className = 'test-result alert ' + (r.ok ? 'alert-ok' : 'alert-error');
-      out.innerHTML = '<p style="margin:0"><strong>' + (r.ok ? 'Réponse reçue' : 'Échec') + '</strong> — ' + esc(r.message) + '</p><p class="hint" style="margin:.3rem 0 0"><code>' + esc(r.url) + '</code></p>';
-    }, function () { out.className = 'test-result alert alert-error'; out.textContent = 'Le test n\'a pas pu être lancé.'; })
+      out.innerHTML = '<p style="margin:0"><strong>' + esc(r.ok ? t('js.testOk') : t('js.testFail')) + '</strong> — ' + esc(r.message) + '</p><p class="hint" style="margin:.3rem 0 0"><code>' + esc(r.url) + '</code></p>';
+    }, function () { out.className = 'test-result alert alert-error'; out.textContent = t('js.testCantRun'); })
       .then(function () { if (button) button.disabled = false; });
   }
 
@@ -428,9 +430,9 @@
     var quick = $('#quickTest');
     if (quick) quick.addEventListener('click', function () {
       var out = $('#quickTestResult');
-      quick.disabled = true; out.textContent = 'Test en cours…';
+      quick.disabled = true; out.textContent = t('js.testRunning');
       api('/settings/test', { form: { url: '' } }).then(function (r) { out.textContent = (r.ok ? '✔ ' : '✖ ') + r.message; },
-        function () { out.textContent = '✖ Test impossible.'; }).then(function () { quick.disabled = false; });
+        function () { out.textContent = '✖ ' + t('js.testImpossible'); }).then(function () { quick.disabled = false; });
     });
 
     // redémarrage du serveur web après un changement de port : on attend qu'il réponde puis on rebascule
@@ -441,7 +443,7 @@
       var poll = function () {
         tries++;
         fetch(target + '/ping', { mode: 'no-cors' }).then(function () { location.href = target + '/settings'; },
-          function () { if (tries < 25) setTimeout(poll, 700); else restart.innerHTML = '<p>Le serveur ne répond pas encore sur ' + esc(target) + '. Ouvrez cette adresse manuellement.</p>'; });
+          function () { if (tries < 25) setTimeout(poll, 700); else restart.innerHTML = '<p>' + esc(t('js.restartNoAnswer', target)) + '</p>'; });
       };
       setTimeout(poll, 1200);
     }

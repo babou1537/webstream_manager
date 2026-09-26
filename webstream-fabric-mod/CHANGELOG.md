@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.2.1-beta.1
+
+- **Langues : français, anglais, espagnol.** Nouveau réglage « Langue · Language · Idioma » dans la page Réglages ; il s'applique à toute l'interface
+  web, aux messages d'erreur, aux commandes `/webstream` en jeu et au sous-titre des écrans vides. Par défaut : la langue du système (anglais si elle n'est pas gérée).
+- Le nom du profil créé au premier lancement et le suffixe des profils dupliqués suivent la langue.
+- Le groupe « sans famille » est toujours affiché en dernier.
+- Messages du bouton et de la touche côté joueur traduits par Minecraft lui-même (fr, en, es) ; description du mod en anglais.
+- Les journaux du serveur sont en anglais.
+- Tests de cohérence des traductions (mêmes clés et paramètres dans les trois langues, toute clé utilisée existe).
+
 ## 2.2.0-beta.1
 
 - **Identité visuelle « moniteur rétro-néon »** : noir profond, néon cyan et magenta, polices pixel embarquées (Pixelify Sans, Silkscreen, VT323 — SIL OFL 1.1),

@@ -46,6 +46,7 @@ class WebServiceTest {
         ws = new Workspace(root, Workspace.MODE_PER_WORLD);
         settings = new WebSettings();
         settings.port = 0;
+        settings.language = "fr";
         settings.adminPassword = "secret";
         settings.maxUploadMb = 1;
         try (ServerSocket s = new ServerSocket(0)) {
@@ -647,5 +648,61 @@ class WebServiceTest {
         assertTrue(scheme.body().contains("http://"));
         HttpResponse<String> other = postForm("/settings/test", "url=" + java.net.URLEncoder.encode("http://localhost:" + web.adminPort() + "/static", StandardCharsets.UTF_8));
         assertTrue(other.body().contains("\"ok\":false"));
+    }
+
+    // ------------------------------------------------------------------ langues
+
+    @Test
+    void interfaceFollowsTheChosenLanguage() throws Exception {
+        settings.port = web.adminPort();
+        assertTrue(get(url("/")).body().contains("<html lang=\"fr\"") && get(url("/")).body().contains("Tableau de bord"));
+
+        assertEquals(200, postForm("/settings", settingsForm("language=en")).statusCode());
+        assertEquals("en", settings.language);
+        String en = get(url("/")).body();
+        assertTrue(en.contains("<html lang=\"en\"") && en.contains("Dashboard") && en.contains("Getting started"), "interface en anglais");
+        assertFalse(en.contains("Tableau de bord"));
+        assertTrue(get(url("/library")).body().contains("Drag and drop your images here"));
+        assertTrue(get(url("/settings")).body().contains("Interface language"));
+
+        assertEquals(200, postForm("/settings", settingsForm("language=es")).statusCode());
+        String es = get(url("/screens")).body();
+        assertTrue(es.contains("<html lang=\"es\"") && es.contains("Pantallas") && es.contains("Nueva pantalla"), "interface en espagnol");
+        assertTrue(get(url("/profiles")).body().contains("Nuevo perfil"));
+    }
+
+    @Test
+    void errorMessagesAndScriptTextsAreTranslated() throws Exception {
+        settings.language = "en";
+        HttpResponse<String> missing = client.send(HttpRequest.newBuilder(URI.create(url("/screens/nope/unassign")))
+            .POST(HttpRequest.BodyPublishers.noBody()).build(), HttpResponse.BodyHandlers.ofString());
+        assertEquals(404, missing.statusCode());
+        assertEquals("Screen not found.", missing.body());
+        assertTrue(get(url("/inconnu/page")).body().contains("404 — page not found"));
+
+        String page = get(url("/screens")).body();
+        assertTrue(page.contains("window.WS_I18N="));
+        assertTrue(page.contains("\"js.copied\":\"Address copied\""), "les textes du JavaScript sont envoyés dans la langue choisie");
+        assertTrue(page.contains("\"err.SCREEN_NOT_FOUND\":\"Screen not found.\""));
+
+        settings.language = "es";
+        assertEquals("Pantalla no encontrada.", client.send(HttpRequest.newBuilder(URI.create(url("/screens/nope/unassign")))
+            .POST(HttpRequest.BodyPublishers.noBody()).build(), HttpResponse.BodyHandlers.ofString()).body());
+    }
+
+    @Test
+    void unsupportedLanguageIsRejected() throws Exception {
+        settings.port = web.adminPort();
+        HttpResponse<String> bad = postForm("/settings", settingsForm("language=de"));
+        assertEquals(400, bad.statusCode());
+        assertEquals("fr", settings.language);
+    }
+
+    @Test
+    void placeholderSvgSubtitleFollowsTheLanguage() throws Exception {
+        settings.language = "en";
+        assertTrue(get(url("/screens/placeholder/280/130.svg")).body().contains("NO CONTENT"));
+        settings.language = "es";
+        assertTrue(get(url("/screens/placeholder/280/130.svg")).body().contains("SIN CONTENIDO"));
     }
 }

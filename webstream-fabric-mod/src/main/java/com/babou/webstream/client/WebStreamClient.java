@@ -55,8 +55,7 @@ public class WebStreamClient implements ClientModInitializer {
         String url = resolveUrl(mc);
         if (url == null) {
             if (mc.player != null) {
-                mc.player.sendMessage(Text.literal("[WebStream] Ce serveur n'a pas publié l'adresse de l'interface. "
-                    + "Demandez-la à un opérateur (/webstream admin), ou renseignez « remoteUrl » dans config/webstream.json."), false);
+                mc.player.sendMessage(Text.translatable("text.webstream.no_admin_url"), false);
             }
             return;
         }
@@ -64,7 +63,7 @@ public class WebStreamClient implements ClientModInitializer {
             WebStreamMod.LOGGER.info("[WebStream] Opening {}", url);
             Util.getOperatingSystem().open(URI.create(url));
         } catch (IllegalArgumentException e) {
-            WebStreamMod.LOGGER.error("[WebStream] Adresse invalide : {}", url);
+            WebStreamMod.LOGGER.error("[WebStream] Invalid address: {}", url);
         }
     }
 

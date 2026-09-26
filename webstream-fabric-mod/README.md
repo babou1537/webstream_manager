@@ -7,6 +7,7 @@ gérer les images de vos écrans. Vous changez l'image dans le navigateur, l'éc
 - **Bibliothèque d'images**, **écrans** avec adresses fixes (`http://…/mon-ecran.png`), **familles** pour les ranger.
 - **Profils** : une configuration (familles + écrans) par monde, ou une seule pour tous, et changement à chaud.
 - **Réglages dans l'interface** : multijoueur, mot de passe, ports… sans éditer de fichier.
+- **Trois langues** : français, English, Español (interface web, messages d'erreur et commandes en jeu).
 - Fonctionne en **solo**, en **LAN** et sur **serveur dédié**.
 
 ## Installation
@@ -71,6 +72,7 @@ La plupart des options se modifient depuis la page **Réglages** ; le fichier es
 | Option | Défaut | Rôle |
 |---|---|---|
 | `enabled` | `true` | désactive le mod |
+| `language` | langue du système | `fr`, `en` ou `es` : interface web et messages du serveur |
 | `port` | `8282` | port de l'interface |
 | `bindAddress` | `127.0.0.1` | `0.0.0.0` pour ouvrir l'interface au réseau |
 | `adminPassword` | `""` | mot de passe des accès non locaux ; vide = accès distant refusé |

@@ -25,6 +25,8 @@ import java.util.List;
  * /webstream admin                lien vers l'interface d'administration       (opérateurs)
  * /webstream profile [list|use <id>]  voir / changer de profil                (list, use : opérateurs)
  * /webstream reload               relit les profils depuis le disque            (opérateurs)
+ *
+ * Les messages suivent la langue choisie dans la page Réglages (fr, en, es).
  */
 public final class WebStreamCommand {
     private static final int OP_LEVEL = 3;
@@ -42,6 +44,10 @@ public final class WebStreamCommand {
     };
 
     private WebStreamCommand() {}
+
+    private static String tr(String key, Object... args) {
+        return WebStreamMod.CONFIG.tr(key, args);
+    }
 
     public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
         dispatcher.register(CommandManager.literal("webstream")
@@ -70,7 +76,7 @@ public final class WebStreamCommand {
 
     private static boolean running(ServerCommandSource src) {
         if (WebStreamMod.workspace() != null && WebStreamMod.service() != null) return true;
-        src.sendError(Text.literal("WebStream n'est pas démarré (désactivé, ou erreur au lancement : voir les logs du serveur)."));
+        src.sendError(Text.literal(tr("cmd.notStarted")));
         return false;
     }
 
@@ -79,14 +85,14 @@ public final class WebStreamCommand {
         Workspace ws = WebStreamMod.workspace();
         WebService web = WebStreamMod.service();
         String world = ws.currentWorld();
-        src.sendFeedback(() -> Text.literal("WebStream — profil actif : ").formatted(Formatting.GRAY)
+        int screens = ws.listScreens().size();
+        src.sendFeedback(() -> Text.literal(tr("cmd.status.prefix")).formatted(Formatting.GRAY)
             .append(Text.literal(ws.activeProfileName()).formatted(Formatting.WHITE, Formatting.BOLD))
-            .append(Text.literal(" (" + ws.listScreens().size() + " écran(s)" + (world == null ? "" : ", monde " + world) + ")").formatted(Formatting.GRAY)), false);
-        src.sendFeedback(() -> Text.literal("Adresse des images : ").formatted(Formatting.GRAY)
-            .append(Text.literal(web.baseUrl() + "/<écran>.png").formatted(Formatting.AQUA)), false);
+            .append(Text.literal(world == null ? tr("cmd.status.suffix", screens) : tr("cmd.status.suffixWorld", screens, world)).formatted(Formatting.GRAY)), false);
+        src.sendFeedback(() -> Text.literal(tr("cmd.status.addr")).formatted(Formatting.GRAY)
+            .append(Text.literal(tr("cmd.status.example", web.baseUrl())).formatted(Formatting.AQUA)), false);
         if (blank(WebStreamMod.CONFIG.publicUrl)) {
-            src.sendFeedback(() -> Text.literal("Astuce : définissez « publicUrl » dans config/webstream.json pour que les autres joueurs voient les écrans.")
-                .formatted(Formatting.YELLOW), false);
+            src.sendFeedback(() -> Text.literal(tr("cmd.status.hint")).formatted(Formatting.YELLOW), false);
         }
         return 1;
     }
@@ -95,11 +101,11 @@ public final class WebStreamCommand {
         if (!running(src)) return 0;
         ScreenInfo screen = WebStreamMod.workspace().getScreen(ref);
         if (screen == null) {
-            src.sendError(Text.literal("Écran « " + ref + " » introuvable dans le profil « " + WebStreamMod.workspace().activeProfileName() + " »."));
+            src.sendError(Text.literal(tr("cmd.url.notFound", ref, WebStreamMod.workspace().activeProfileName())));
             return 0;
         }
         String link = WebStreamMod.service().screenUrl(ref);
-        src.sendFeedback(() -> Text.literal("Adresse de « " + ref + " » : ").formatted(Formatting.GRAY).append(clickable(link)), false);
+        src.sendFeedback(() -> Text.literal(tr("cmd.url.label", ref)).formatted(Formatting.GRAY).append(clickable(link)), false);
         return 1;
     }
 
@@ -112,19 +118,17 @@ public final class WebStreamCommand {
         } else if (!src.getServer().isDedicated()) {
             link = WebStreamMod.CONFIG.localAdminUrl();
         } else {
-            src.sendFeedback(() -> Text.literal("L'interface n'écoute que sur la machine du serveur (" + WebStreamMod.CONFIG.localAdminUrl()
-                + "). Pour y accéder à distance, définissez « adminUrl », « bindAddress » et « adminPassword » dans config/webstream.json.")
-                .formatted(Formatting.YELLOW), false);
+            src.sendFeedback(() -> Text.literal(tr("cmd.admin.localOnly", WebStreamMod.CONFIG.localAdminUrl())).formatted(Formatting.YELLOW), false);
             return 1;
         }
-        src.sendFeedback(() -> Text.literal("Interface d'administration : ").formatted(Formatting.GRAY).append(clickable(link)), false);
+        src.sendFeedback(() -> Text.literal(tr("cmd.admin.label")).formatted(Formatting.GRAY).append(clickable(link)), false);
         return 1;
     }
 
     private static int currentProfile(ServerCommandSource src) {
         if (!running(src)) return 0;
         Workspace ws = WebStreamMod.workspace();
-        src.sendFeedback(() -> Text.literal("Profil actif : ").formatted(Formatting.GRAY)
+        src.sendFeedback(() -> Text.literal(tr("cmd.profile.current")).formatted(Formatting.GRAY)
             .append(Text.literal(ws.activeProfileName() + " (" + ws.activeProfileId() + ")").formatted(Formatting.WHITE)), false);
         return 1;
     }
@@ -132,9 +136,10 @@ public final class WebStreamCommand {
     private static int listProfiles(ServerCommandSource src) {
         if (!running(src)) return 0;
         for (ProfileInfo p : WebStreamMod.workspace().listProfiles()) {
+            String detail = "  [" + p.id() + "] " + tr("cmd.profile.screens", p.screenCount())
+                + (p.worlds().isEmpty() ? "" : tr("cmd.profile.worlds", String.join(", ", p.worlds())));
             MutableText line = Text.literal((p.active() ? "▶ " : "  ") + p.name()).formatted(p.active() ? Formatting.GREEN : Formatting.WHITE)
-                .append(Text.literal("  [" + p.id() + "] " + p.screenCount() + " écran(s)"
-                    + (p.worlds().isEmpty() ? "" : " — mondes : " + String.join(", ", p.worlds()))).formatted(Formatting.GRAY));
+                .append(Text.literal(detail).formatted(Formatting.GRAY));
             src.sendFeedback(() -> line, false);
         }
         return 1;
@@ -146,20 +151,19 @@ public final class WebStreamCommand {
         try {
             ws.activateProfile(id, true);
         } catch (WsException e) {
-            src.sendError(Text.literal("Profil « " + id + " » introuvable. Voir /webstream profile list"));
+            src.sendError(Text.literal(tr("cmd.profile.notFound", id)));
             return 0;
         }
-        src.sendFeedback(() -> Text.literal("Profil « " + ws.activeProfileName() + " » activé"
-            + (ws.currentWorld() == null ? "" : " et retenu pour le monde « " + ws.currentWorld() + " »")
-            + ". Les écrans se mettent à jour.").formatted(Formatting.GREEN), true);
+        src.sendFeedback(() -> Text.literal(tr("cmd.profile.used", ws.activeProfileName())
+            + (ws.currentWorld() == null ? "" : tr("cmd.profile.usedWorld", ws.currentWorld()))
+            + tr("cmd.profile.usedEnd")).formatted(Formatting.GREEN), true);
         return 1;
     }
 
     private static int reload(ServerCommandSource src) {
         if (!running(src)) return 0;
         WebStreamMod.reload();
-        src.sendFeedback(() -> Text.literal("Profils rechargés depuis le disque. Profil actif : " + WebStreamMod.workspace().activeProfileName())
-            .formatted(Formatting.GREEN), true);
+        src.sendFeedback(() -> Text.literal(tr("cmd.reload.done", WebStreamMod.workspace().activeProfileName())).formatted(Formatting.GREEN), true);
         return 1;
     }
 
@@ -173,7 +177,7 @@ public final class WebStreamCommand {
     private static MutableText clickable(String url) {
         MutableText link = Text.literal(url).styled(s -> s.withColor(Formatting.AQUA).withUnderline(true)
             .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, url)));
-        MutableText copy = Text.literal(" [copier]").styled(s -> s.withColor(Formatting.GRAY)
+        MutableText copy = Text.literal(" [" + tr("cmd.copy") + "]").styled(s -> s.withColor(Formatting.GRAY)
             .withClickEvent(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, url)));
         return link.append(copy);
     }

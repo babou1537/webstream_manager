@@ -3,7 +3,7 @@
   "id": "webstream",
   "version": "${version}",
   "name": "WebStream Manager",
-  "description": "Gérez les images de vos écrans WebStreamer depuis une interface web intégrée : bibliothèque, écrans, profils par monde. Aucune installation externe requise.",
+  "description": "Manage the images shown on your WebStreamer screens from a built-in web interface: library, screens, per-world profiles. No external install required.",
   "authors": [
     "babou1537"
   ],

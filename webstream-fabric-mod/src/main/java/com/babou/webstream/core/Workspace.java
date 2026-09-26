@@ -60,6 +60,7 @@ public final class Workspace {
     private final Path profilesDir;
     private final Path stateFile;
     private volatile String newWorldMode;
+    private final String defaultProfileName;
 
     private final Map<String, Profile> profiles = new LinkedHashMap<>();
     private final Map<String, String> worlds = new LinkedHashMap<>();
@@ -67,6 +68,12 @@ public final class Workspace {
     private String currentWorld;
 
     public Workspace(Path root, String newWorldMode) {
+        this(root, newWorldMode, "Default");
+    }
+
+    /** defaultProfileName : nom (dans la langue de l'utilisateur) du profil créé au premier lancement. */
+    public Workspace(Path root, String newWorldMode, String defaultProfileName) {
+        this.defaultProfileName = defaultProfileName == null || defaultProfileName.isBlank() ? "Default" : defaultProfileName.trim();
         // Chemin absolu et normalisé : Fabric fournit un chemin relatif (.\config\...), et les contrôles
         // anti-« .. » comparent des chemins normalisés avec startsWith
         this.root = root.toAbsolutePath().normalize();
@@ -124,7 +131,7 @@ public final class Workspace {
         if (profiles.isEmpty()) {
             Profile p = new Profile();
             p.id = DEFAULT_PROFILE_ID;
-            p.name = "Par défaut";
+            p.name = defaultProfileName;
             profiles.put(p.id, p);
             saveProfile(p);
         }
@@ -253,9 +260,14 @@ public final class Workspace {
     }
 
     public synchronized Profile duplicateProfile(String id) {
+        return duplicateProfile(id, "(copy)");
+    }
+
+    /** suffix : « (copie) », « (copy) »… ajouté au nom du profil dupliqué. */
+    public synchronized Profile duplicateProfile(String id, String suffix) {
         Profile source = profiles.get(id);
         if (source == null) throw new WsException("PROFILE_NOT_FOUND");
-        String base = source.name + " (copie)";
+        String base = source.name + " " + suffix;
         String name = base;
         for (int i = 2; nameTaken(name); i++) name = base + " " + i;
         return createProfile(name, id);
@@ -401,8 +413,9 @@ public final class Workspace {
                 for (ScreenGroup g : groups) if (g.familyId().equals(s.familyId())) g.screens().add(s);
             }
         }
-        if (!orphans.isEmpty()) groups.add(new ScreenGroup(null, "Sans famille", orphans));
         groups.sort(Comparator.comparing(ScreenGroup::family, Collator.getInstance(Locale.FRENCH)));
+        // Les écrans sans famille viennent toujours en dernier ; l'interface affiche le libellé dans sa langue
+        if (!orphans.isEmpty()) groups.add(new ScreenGroup(null, "", orphans));
         return groups;
     }
 

@@ -101,11 +101,11 @@ public final class WebService {
             return t;
         });
         adminServer = create(settings.bindAddress, settings.port, false);
-        LOGGER.info("[WebStream] Interface d'administration sur http://{}:{}", displayHost(settings.bindAddress), adminPort());
+        LOGGER.info("[WebStream] Admin interface on http://{}:{}", displayHost(settings.bindAddress), adminPort());
         if (settings.publicPort > 0) {
             try {
                 publicServer = create(settings.publicBindAddress, settings.publicPort, true);
-                LOGGER.info("[WebStream] Images publiques sur le port {}", publicPort());
+                LOGGER.info("[WebStream] Public images on port {}", publicPort());
             } catch (IOException e) {
                 stop();
                 throw e;
@@ -171,13 +171,13 @@ public final class WebService {
             String lookupMethod = c.method.equals("HEAD") ? "GET" : c.method;
             if (!lookupMethod.equals("GET") && !lookupMethod.equals("POST")) {
                 ex.getResponseHeaders().set("Allow", "GET, HEAD, POST");
-                c.text(405, "Méthode non autorisée");
+                c.text(405, settings.tr("http.methodNotAllowed"));
                 return;
             }
             Router.Match match = router.find(lookupMethod, c.rawPath);
             if (match == null || (publicOnly && !match.route().publicAsset)) {
                 if (publicOnly || !lookupMethod.equals("GET")) {
-                    c.text(404, "Introuvable");
+                    c.text(404, settings.tr("http.notFound"));
                 } else if (authorize(c, false)) {
                     c.html(404, pages.notFound(c));
                 }
@@ -193,9 +193,9 @@ public final class WebService {
         } catch (WsException e) {
             respondError(ex, e);
         } catch (Exception e) {
-            LOGGER.error("[WebStream] Erreur sur {} {}", ex.getRequestMethod(), ex.getRequestURI().getRawPath(), e);
+            LOGGER.error("[WebStream] Error on {} {}", ex.getRequestMethod(), ex.getRequestURI().getRawPath(), e);
             try {
-                new Ctx(ex).text(500, "Erreur interne du serveur");
+                new Ctx(ex).text(500, settings.tr("http.internal"));
             } catch (Exception ignored) {
                 // réponse déjà commencée
             }
@@ -216,17 +216,17 @@ public final class WebService {
         if (!trusted) {
             String password = settings.adminPassword == null ? "" : settings.adminPassword;
             if (password.isEmpty()) {
-                c.text(403, "Accès distant désactivé : définissez adminPassword dans config/webstream.json.");
+                c.text(403, settings.tr("http.remoteDisabled"));
                 return false;
             }
             if (!passwordMatches(c.header("Authorization"), password)) {
                 c.ex.getResponseHeaders().set("WWW-Authenticate", "Basic realm=\"WebStream Manager\", charset=\"UTF-8\"");
-                c.text(401, "Authentification requise");
+                c.text(401, settings.tr("http.authRequired"));
                 return false;
             }
         }
         if (checkOrigin && !c.method.equals("GET") && !c.method.equals("HEAD") && !sameOrigin(c)) {
-            c.text(403, "Requête inter-sites refusée.");
+            c.text(403, settings.tr("http.crossSite"));
             return false;
         }
         c.admin = true;
@@ -285,35 +285,10 @@ public final class WebService {
         return 400;
     }
 
-    static String messageFor(String code) {
-        return switch (code) {
-            case "SCREEN_EXISTS" -> "Cet écran existe déjà.";
-            case "SCREEN_NOT_FOUND" -> "Écran introuvable.";
-            case "REF_REQUIRED" -> "Le nom de l'écran est requis (lettres, chiffres, _ - . uniquement).";
-            case "FAMILY_EXISTS" -> "Cette famille existe déjà.";
-            case "FAMILY_NAME_REQUIRED" -> "Le nom de la famille est requis.";
-            case "FAMILY_IN_USE" -> "Cette famille est utilisée par des écrans.";
-            case "FAMILY_NOT_FOUND" -> "Famille introuvable.";
-            case "CONTENT_NOT_FOUND" -> "Image introuvable dans la bibliothèque.";
-            case "FILE_IN_USE" -> "Ce fichier est assigné à un écran d'un profil.";
-            case "FILE_NOT_FOUND" -> "Fichier introuvable.";
-            case "BAD_PATH" -> "Nom de fichier invalide.";
-            case "BAD_FILE_TYPE" -> "Type de fichier non autorisé (images uniquement).";
-            case "BAD_DIMENSIONS" -> "Dimensions invalides (nombre entre 0 et 1000).";
-            case "PROFILE_EXISTS" -> "Un profil porte déjà ce nom.";
-            case "PROFILE_NOT_FOUND" -> "Profil introuvable.";
-            case "PROFILE_ACTIVE" -> "Le profil actif ne peut pas être supprimé : activez-en un autre d'abord.";
-            case "PROFILE_NAME_REQUIRED" -> "Le nom du profil est requis.";
-            case "IMPORT_NO_FILE" -> "Aucun fichier valide reçu (.json attendu).";
-            case "IMPORT_INVALID" -> "Fichier invalide : liste d'écrans introuvable.";
-            case "IMPORT_TOO_LARGE" -> "Trop d'écrans dans ce fichier.";
-            case "IMPORT_BAD_MODE" -> "Mode d'import inconnu.";
-            case "IMPORT_BAD_JSON" -> "Ce fichier JSON est illisible.";
-            case "FILE_TOO_LARGE" -> "Fichier trop volumineux.";
-            case "PAYLOAD_TOO_LARGE" -> "Requête trop volumineuse.";
-            case "MULTIPART_INVALID", "TOO_MANY_PARTS" -> "Envoi de fichier invalide.";
-            default -> "Erreur : " + code;
-        };
+    /** Message d'erreur traduit pour un code métier (SCREEN_NOT_FOUND…). */
+    String messageFor(String code) {
+        String key = "err." + code;
+        return I18n.has(settings.language, key) || I18n.has(I18n.DEFAULT, key) ? settings.tr(key) : settings.tr("err.unknown", code);
     }
 
     private void respondError(HttpExchange ex, WsException e) {
@@ -356,7 +331,7 @@ public final class WebService {
     private void registerRoutes() {
         Router r = router;
 
-        r.add("GET", "/", c -> c.html(200, pages.layout(c, "Accueil", "home", pages.home(c))));
+        r.add("GET", "/", c -> c.html(200, pages.layout(c, settings.tr("nav.home"), "home", pages.home(c))));
 
         r.add("GET", "/api/status", c -> c.json(200, Map.of(
             "version", version,
@@ -372,7 +347,7 @@ public final class WebService {
         r.add("GET", "/thumb/{file}", c -> {
             Path src = ws.resolveLibraryFile(c.param("file"));
             if (src == null) {
-                c.text(404, "Fichier introuvable");
+                c.text(404, settings.tr("http.fileNotFound"));
                 return;
             }
             Integer asked = parseInt(c.query.get("w"));
@@ -395,7 +370,7 @@ public final class WebService {
         // ---- écrans
         r.add("GET", "/screens", c -> {
             String mode = "all".equals(c.query.get("mode")) ? "all" : "family";
-            c.html(200, pages.layout(c, "Écrans", "screens", pages.screens(c, mode)));
+            c.html(200, pages.layout(c, settings.tr("nav.screens"), "screens", pages.screens(c, mode)));
         });
         r.add("GET", "/screens/placeholder/{w}/{h}.svg", c -> {
             int w = clamp(parseInt(c.param("w")), 640);
@@ -442,13 +417,13 @@ public final class WebService {
         });
 
         // ---- familles
-        r.add("GET", "/families", c -> c.html(200, pages.layout(c, "Familles", "families", pages.families(c, null))));
+        r.add("GET", "/families", c -> c.html(200, pages.layout(c, settings.tr("nav.families"), "families", pages.families(c, null))));
         r.add("POST", "/families/create", c -> {
             try {
                 ws.createFamily(c.field("name"));
                 c.redirect("/families");
             } catch (WsException e) {
-                c.html(statusFor(e.code()), pages.layout(c, "Familles", "families", pages.families(c, esc(messageFor(e.code())))));
+                c.html(statusFor(e.code()), pages.layout(c, settings.tr("nav.families"), "families", pages.families(c, esc(messageFor(e.code())))));
             }
         });
         r.add("POST", "/families/{id}/delete", c -> {
@@ -458,7 +433,7 @@ public final class WebService {
                 ws.deleteFamily(id);
                 c.redirect("/families");
             } catch (WsException e) {
-                c.html(statusFor(e.code()), pages.layout(c, "Familles", "families", pages.families(c, esc(messageFor(e.code())))));
+                c.html(statusFor(e.code()), pages.layout(c, settings.tr("nav.families"), "families", pages.families(c, esc(messageFor(e.code())))));
             }
         });
 
@@ -466,7 +441,7 @@ public final class WebService {
         r.add("GET", "/profiles", c -> profilesPage(c, 200, null, null));
         r.add("POST", "/profiles/create", c -> profileAction(c, () -> ws.createProfile(c.field("name"), c.field("cloneFrom"))));
         r.add("POST", "/profiles/{id}/activate", c -> profileAction(c, () -> ws.activateProfile(c.param("id"), "1".equals(c.field("bind")))));
-        r.add("POST", "/profiles/{id}/duplicate", c -> profileAction(c, () -> ws.duplicateProfile(c.param("id"))));
+        r.add("POST", "/profiles/{id}/duplicate", c -> profileAction(c, () -> ws.duplicateProfile(c.param("id"), settings.tr("profile.copySuffix"))));
         r.add("POST", "/profiles/{id}/rename", c -> profileAction(c, () -> ws.renameProfile(c.param("id"), c.field("name"))));
         r.add("POST", "/profiles/{id}/delete", c -> profileAction(c, () -> ws.deleteProfile(c.param("id"))));
 
@@ -491,7 +466,7 @@ public final class WebService {
         r.addPublic("GET", "/content/{file}", c -> {
             Path file = ws.resolveLibraryFile(c.param("file"));
             if (file == null) {
-                c.text(404, "Fichier introuvable");
+                c.text(404, settings.tr("http.fileNotFound"));
                 return;
             }
             c.ex.getResponseHeaders().set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox");
@@ -500,7 +475,7 @@ public final class WebService {
         r.addPublic("GET", "/branding/{name}", c -> {
             Path file = brandingFile(c.param("name"));
             if (file == null) {
-                c.text(404, "Introuvable");
+                c.text(404, settings.tr("http.notFound"));
                 return;
             }
             serveFile(c, file, "public, max-age=300");
@@ -531,15 +506,15 @@ public final class WebService {
     }
 
     private void profilesPage(Ctx c, int status, String flashHtml, String kind) throws IOException {
-        c.html(status, pages.layout(c, "Profils", "profiles", pages.profiles(c, flashHtml, kind)));
+        c.html(status, pages.layout(c, settings.tr("nav.profiles"), "profiles", pages.profiles(c, flashHtml, kind)));
     }
 
     private void libraryPage(Ctx c, int status, String errorHtml) throws IOException {
-        c.html(status, pages.layout(c, "Bibliothèque", "library", pages.library(c, ws.listLibraryFilesInfo(), ws.usageByFile(), errorHtml)));
+        c.html(status, pages.layout(c, settings.tr("nav.library"), "library", pages.library(c, ws.listLibraryFilesInfo(), ws.usageByFile(), errorHtml)));
     }
 
     private void dataPage(Ctx c, int status, ImportResult result, String errorHtml) throws IOException {
-        c.html(status, pages.layout(c, "Données", "data", pages.data(c, result, errorHtml)));
+        c.html(status, pages.layout(c, settings.tr("nav.data"), "data", pages.data(c, result, errorHtml)));
     }
 
     // ------------------------------------------------------------------ envois de fichiers
@@ -594,8 +569,7 @@ public final class WebService {
             if (c.wantsJson()) {
                 c.json(rejected.isEmpty() ? 200 : 400, Map.of("stored", stored, "rejected", rejected));
             } else if (!rejected.isEmpty()) {
-                StringBuilder sb = new StringBuilder("<p style=\"margin-top:0\">❌ ").append(rejected.size())
-                    .append(" fichier(s) refusé(s) (image PNG, JPG, GIF, WebP, BMP, TIFF ou SVG valide attendue) :</p><ul style=\"margin:0\">");
+                StringBuilder sb = new StringBuilder("<p style=\"margin-top:0\">❌ ").append(settings.tr("lib.rejected", rejected.size())).append("</p><ul style=\"margin:0\">");
                 for (String name : rejected) sb.append("<li>").append(esc(name)).append("</li>");
                 sb.append("</ul>");
                 libraryPage(c, 400, sb.toString());
@@ -629,14 +603,14 @@ public final class WebService {
     private void serveScreen(Ctx c) throws IOException {
         ScreenInfo screen = ws.getScreen(c.param("ref"));
         if (screen == null) {
-            c.text(404, "Écran introuvable");
+            c.text(404, settings.tr("http.screenNotFound"));
             return;
         }
         Path file = screen.content() == null ? null : ws.resolveLibraryFile(screen.content());
         if (file == null) {
             c.ex.getResponseHeaders().set("Cache-Control", "no-cache");
             if (!settings.placeholderImage) {
-                c.text(404, "Aucune image assignée à cet écran");
+                c.text(404, settings.tr("http.noImage"));
                 return;
             }
             c.ex.getResponseHeaders().set("X-WebStream-Placeholder", "1");
@@ -689,13 +663,13 @@ public final class WebService {
     private void serveStatic(Ctx c, String name) throws IOException {
         for (String part : name.split("/")) {
             if (!STATIC_NAME.matcher(part).matches() || part.equals("..") || part.equals(".")) {
-                c.text(404, "Introuvable");
+                c.text(404, settings.tr("http.notFound"));
                 return;
             }
         }
         try (InputStream in = WebService.class.getResourceAsStream("/web/static/" + name)) {
             if (in == null) {
-                c.text(404, "Introuvable");
+                c.text(404, settings.tr("http.notFound"));
                 return;
             }
             c.ex.getResponseHeaders().set("Cache-Control", "public, max-age=300");
@@ -717,7 +691,7 @@ public final class WebService {
     // ------------------------------------------------------------------ réglages
 
     private void settingsPage(Ctx c, int status, WebSettings shown, List<String> errors, String flashKind) throws IOException {
-        c.html(status, pages.layout(c, "Réglages", "settings",
+        c.html(status, pages.layout(c, settings.tr("nav.settings"), "settings",
             pages.settings(c, shown, errors, flashKind, settingsNotice, localAddresses(), !settings.adminPassword.isEmpty())));
     }
 
@@ -738,6 +712,8 @@ public final class WebService {
         Map<String, String> f = c.form();
         WebSettings next = settings.copy();
 
+        String lang = trim(f.get("language"));
+        if (!lang.isEmpty()) next.language = lang;
         next.port = num(f.get("port"), -1);
         boolean publicOn = f.containsKey("publicEnabled");
         next.publicPort = !publicOn ? 0 : (trim(f.get("publicPort")).isEmpty() ? 8283 : num(f.get("publicPort"), -1));
@@ -755,7 +731,7 @@ public final class WebService {
 
         List<String> errors = new ArrayList<>(next.validate());
         if (!next.trustLocalhost && next.adminPassword.isEmpty()) {
-            errors.add("Sans mot de passe, désactiver la confiance locale vous bloquerait : définissez d'abord un mot de passe.");
+            errors.add(settings.tr("val.lockout"));
         }
         if (!errors.isEmpty()) {
             next.adminPassword = settings.adminPassword;
@@ -784,16 +760,16 @@ public final class WebService {
                 stop();
                 try {
                     start();
-                    LOGGER.info("[WebStream] Serveur web redémarré avec les nouveaux réglages");
+                    LOGGER.info("[WebStream] Web server restarted with the new settings");
                 } catch (IOException e) {
-                    LOGGER.error("[WebStream] Nouveaux ports inutilisables ({}) : retour aux réglages précédents", e.getMessage());
+                    LOGGER.error("[WebStream] New ports unusable ({}): reverting to the previous settings", e.getMessage());
                     settings.copyFrom(previous);
                     persist();
-                    settingsNotice = "Les nouveaux ports n'ont pas pu être utilisés (" + e.getMessage() + ") : les réglages précédents ont été rétablis.";
+                    settingsNotice = settings.tr("set.restartFailed", e.getMessage());
                     try {
                         start();
                     } catch (IOException e2) {
-                        LOGGER.error("[WebStream] Impossible de relancer le serveur web", e2);
+                        LOGGER.error("[WebStream] Could not restart the web server", e2);
                     }
                 }
             }
@@ -807,7 +783,7 @@ public final class WebService {
         String typed = trim(c.field("url"));
         String configured = typed.isEmpty() ? trim(settings.publicUrl) : typed;
         if (!configured.isEmpty() && !configured.startsWith("http://") && !configured.startsWith("https://")) {
-            c.json(200, Map.of("ok", false, "url", configured, "message", "L'adresse doit commencer par http:// ou https://."));
+            c.json(200, Map.of("ok", false, "url", configured, "message", settings.tr("test.badScheme")));
             return;
         }
         String base = configured.isEmpty()
@@ -828,15 +804,14 @@ public final class WebService {
             boolean ok = r.statusCode() == 200 && body.contains("\"webstream\"");
             result.put("ok", ok);
             result.put("status", r.statusCode());
-            result.put("message", ok ? "Le serveur répond bien à cette adresse."
-                : "Une réponse a été reçue, mais ce n'est pas WebStream (code " + r.statusCode() + ").");
+            result.put("message", ok ? settings.tr("test.ok") : settings.tr("test.notWebstream", r.statusCode()));
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             result.put("ok", false);
-            result.put("message", "Test interrompu.");
+            result.put("message", settings.tr("test.interrupted"));
         } catch (IOException | IllegalArgumentException e) {
             result.put("ok", false);
-            result.put("message", "Aucune réponse à cette adresse (" + e.getClass().getSimpleName() + ").");
+            result.put("message", settings.tr("test.noResponse", e.getClass().getSimpleName()));
         }
         c.json(200, result);
     }
@@ -859,7 +834,7 @@ public final class WebService {
         return out;
     }
 
-    private static String placeholderSvg(int width, int height) {
+    private String placeholderSvg(int width, int height) {
         String[] bars = {"#c8c8c8", "#c8c800", "#00c8c8", "#00c800", "#c800c8", "#c80000", "#0000c8"};
         String[] low = {"#0000c8", "#111111", "#c800c8", "#111111", "#00c8c8", "#111111", "#c8c8c8"};
         double bw = width / 7.0;
@@ -878,7 +853,7 @@ public final class WebService {
         double big = Math.min(width * 0.09, height * 0.16);
         double small = Math.min(width * 0.035, height * 0.06);
         sb.append(String.format(Locale.ROOT, "<text x=\"50%%\" y=\"%.2f\" fill=\"#3df5ff\" font-family=\"Consolas,'Courier New',monospace\" font-weight=\"700\" font-size=\"%.2f\" text-anchor=\"middle\">NO SIGNAL</text>", height * 0.44, big));
-        sb.append(String.format(Locale.ROOT, "<text x=\"50%%\" y=\"%.2f\" fill=\"#ff3df2\" font-family=\"Consolas,'Courier New',monospace\" font-size=\"%.2f\" text-anchor=\"middle\">AUCUN CONTENU</text>", height * 0.54, small));
+        sb.append(String.format(Locale.ROOT, "<text x=\"50%%\" y=\"%.2f\" fill=\"#ff3df2\" font-family=\"Consolas,'Courier New',monospace\" font-size=\"%.2f\" text-anchor=\"middle\">%s</text>", height * 0.54, small, esc(settings.tr("placeholder.sub").toUpperCase(I18n.locale(settings.language)))));
         return sb.append("</svg>").toString();
     }
 }

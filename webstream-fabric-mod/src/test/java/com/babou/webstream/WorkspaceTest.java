@@ -97,9 +97,10 @@ class WorkspaceTest {
         assertEquals(3, groups.size());
         assertEquals("Alpha", groups.get(0).family());
         assertEquals(1, groups.get(0).screens().size());
-        assertEquals("Sans famille", groups.get(1).family());
-        assertEquals("Zoo", groups.get(2).family());
-        assertTrue(groups.get(2).screens().isEmpty());
+        assertEquals("Zoo", groups.get(1).family());
+        assertTrue(groups.get(1).screens().isEmpty());
+        assertNull(groups.get(2).familyId(), "les écrans sans famille viennent toujours en dernier, dans n'importe quelle langue");
+        assertEquals(1, groups.get(2).screens().size());
     }
 
     @Test
@@ -138,11 +139,11 @@ class WorkspaceTest {
     void cloneRenameDeleteRules() {
         ws.createScreen("a", null, null, null);
         var copy = ws.duplicateProfile("default");
-        assertEquals("Par défaut (copie)", copy.name);
+        assertEquals("Default (copy)", copy.name);
         ws.activateProfile(copy.id, false);
         assertEquals(1, ws.listScreens().size());
         assertEquals("PROFILE_ACTIVE", code(() -> ws.deleteProfile(copy.id)));
-        assertEquals("PROFILE_EXISTS", code(() -> ws.renameProfile(copy.id, "par défaut")));
+        assertEquals("PROFILE_EXISTS", code(() -> ws.renameProfile(copy.id, "DEFAULT")));
         ws.renameProfile(copy.id, "Autre");
         ws.deleteProfile("default");
         assertEquals("PROFILE_ACTIVE", code(() -> ws.deleteProfile(copy.id)));

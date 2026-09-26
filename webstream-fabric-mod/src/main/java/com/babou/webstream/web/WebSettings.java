@@ -14,6 +14,8 @@ import java.util.regex.Pattern;
 public class WebSettings {
     private static final Pattern HOST = Pattern.compile("^(localhost|(\\d{1,3}\\.){3}\\d{1,3}|[0-9a-fA-F:]*:[0-9a-fA-F:.]*)$");
 
+    /** Langue de l'interface web et des messages du serveur : fr, en ou es (par défaut celle du système). */
+    public String language = I18n.detect();
     /** Port de l'interface d'administration (et des images, si publicPort = 0). */
     public int port = 8282;
     /** 127.0.0.1 = cette machine seulement ; 0.0.0.0 = ouvert au réseau (mot de passe requis à distance). */
@@ -34,14 +36,20 @@ public class WebSettings {
     public int maxUploadMb = 64;
     /**
      * Écran sans image : false = erreur 404 (WebStreamer réessaie toutes les 30 s et affiche l'image dès qu'elle est
-     * assignée) ; true = image « Aucun contenu » (WebStreamer la garde en cache tant que l'URL ne change pas).
+     * assignée) ; true = image « NO SIGNAL » (WebStreamer la garde en cache tant que l'URL ne change pas).
      */
     public boolean placeholderImage = false;
     /** Paramètre ajouté aux adresses d'écrans copiées depuis l'interface (sans le « ? »), ex. refresh=1. Vide = aucun. */
     public String urlQuery = "refresh=1";
 
+    /** Traduit une clé dans la langue des réglages. */
+    public String tr(String key, Object... args) {
+        return I18n.tr(language, key, args);
+    }
+
     /** Remet des valeurs cohérentes après lecture d'un fichier ancien ou édité à la main. */
     public void sanitize() {
+        language = I18n.supported(language) ? language : I18n.detect();
         if (bindAddress == null || bindAddress.isBlank()) bindAddress = "127.0.0.1";
         if (publicBindAddress == null || publicBindAddress.isBlank()) publicBindAddress = "0.0.0.0";
         if (adminPassword == null) adminPassword = "";
@@ -57,28 +65,28 @@ public class WebSettings {
     /** Vérification stricte avant d'appliquer des réglages saisis dans l'interface : liste des erreurs (vide si OK). */
     public List<String> validate() {
         List<String> errors = new ArrayList<>();
-        if (port < 1 || port > 65535) errors.add("Le port de l'interface doit être compris entre 1 et 65535.");
-        if (publicPort < 0 || publicPort > 65535) errors.add("Le port public doit être compris entre 1 et 65535 (ou 0 pour le désactiver).");
-        if (publicPort > 0 && publicPort == port) errors.add("Le port public doit être différent du port de l'interface.");
-        if (!HOST.matcher(bindAddress == null ? "" : bindAddress.trim()).matches()) errors.add("Adresse d'écoute de l'interface invalide (ex. 127.0.0.1 ou 0.0.0.0).");
-        if (!HOST.matcher(publicBindAddress == null ? "" : publicBindAddress.trim()).matches()) errors.add("Adresse d'écoute du port public invalide (ex. 0.0.0.0).");
-        checkUrl(publicUrl, "L'adresse publique", errors);
-        checkUrl(adminUrl, "L'adresse d'administration", errors);
-        if (!Workspace.MODE_PER_WORLD.equals(newWorldProfile) && !Workspace.MODE_SHARED.equals(newWorldProfile)) errors.add("Mode de profil des nouveaux mondes inconnu.");
-        if (maxUploadMb < 1 || maxUploadMb > 2048) errors.add("La taille maximale d'un envoi doit être comprise entre 1 et 2048 Mo.");
-        if (urlQuery != null && !urlQuery.matches("[A-Za-z0-9_.~%=&-]*")) errors.add("Le paramètre d'adresse ne peut contenir que des lettres, chiffres et _ . ~ % = & - (ex. refresh=1).");
+        if (!I18n.supported(language)) errors.add(tr("val.language"));
+        if (port < 1 || port > 65535) errors.add(tr("val.port"));
+        if (publicPort < 0 || publicPort > 65535) errors.add(tr("val.publicPort"));
+        if (publicPort > 0 && publicPort == port) errors.add(tr("val.publicPortSame"));
+        if (!HOST.matcher(bindAddress == null ? "" : bindAddress.trim()).matches()) errors.add(tr("val.bind"));
+        if (!HOST.matcher(publicBindAddress == null ? "" : publicBindAddress.trim()).matches()) errors.add(tr("val.publicBind"));
+        if (!validUrl(publicUrl)) errors.add(tr("val.publicUrl"));
+        if (!validUrl(adminUrl)) errors.add(tr("val.adminUrl"));
+        if (!Workspace.MODE_PER_WORLD.equals(newWorldProfile) && !Workspace.MODE_SHARED.equals(newWorldProfile)) errors.add(tr("val.profileMode"));
+        if (maxUploadMb < 1 || maxUploadMb > 2048) errors.add(tr("val.maxUpload"));
+        if (urlQuery != null && !urlQuery.matches("[A-Za-z0-9_.~%=&-]*")) errors.add(tr("val.urlQuery"));
         return errors;
     }
 
-    private static void checkUrl(String url, String label, List<String> errors) {
-        if (url == null || url.isBlank()) return;
+    private static boolean validUrl(String url) {
+        if (url == null || url.isBlank()) return true;
         String u = url.trim();
         try {
             URI uri = URI.create(u);
-            boolean ok = (u.startsWith("http://") || u.startsWith("https://")) && uri.getHost() != null && !u.contains(" ");
-            if (!ok) errors.add(label + " doit commencer par http:// ou https:// (ex. http://mon-serveur.fr:8283).");
+            return (u.startsWith("http://") || u.startsWith("https://")) && uri.getHost() != null && !u.contains(" ");
         } catch (IllegalArgumentException e) {
-            errors.add(label + " n'est pas une adresse valide.");
+            return false;
         }
     }
 
@@ -88,6 +96,7 @@ public class WebSettings {
     }
 
     public void copyFrom(WebSettings o) {
+        language = o.language;
         port = o.port;
         bindAddress = o.bindAddress;
         publicPort = o.publicPort;
