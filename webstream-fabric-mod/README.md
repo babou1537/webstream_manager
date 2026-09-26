@@ -89,9 +89,20 @@ Fichier `config/webstream.json` :
   "port": 8282,
   "autoOpenBrowser": false,
   "keybind": "W",
-  "useCtrlModifier": true
+  "useCtrlModifier": true,
+  "bindAddress": "127.0.0.1",
+  "adminPassword": "",
+  "remoteUrl": ""
 }
 ```
+
+| Option | Rôle |
+|--------|------|
+| `bindAddress` | `127.0.0.1` : interface accessible depuis cette machine seulement. `0.0.0.0` : ouverte au réseau. |
+| `adminPassword` | Mot de passe demandé aux accès venant d'une autre machine (nom d'utilisateur libre). Vide = accès distant refusé. Les images `/<écran>.png` restent publiques. |
+| `remoteUrl` | Pour un joueur dont l'interface est hébergée sur un serveur : URL ouverte par Ctrl+W (ex: `http://mon-serveur:8282`). |
+
+Les données (écrans, familles) sont rangées par monde dans `config/webstream/data/<monde>/`. Pour reprendre celles d'une ancienne version, utiliser la page **Données** de l'interface (import d'un `.json` ou d'un `.db`).
 
 📖 **Plus d'exemples :** [doc/CONFIG_EXAMPLES.md](doc/CONFIG_EXAMPLES.md)
 

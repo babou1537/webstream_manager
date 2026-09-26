@@ -1,6 +1,7 @@
 package com.babou.webstream.client;
 
 import com.babou.webstream.WebStreamMod;
+import com.babou.webstream.WebStreamServer;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
@@ -8,7 +9,8 @@ import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import org.lwjgl.glfw.GLFW;
 
-import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 public class WebStreamClient implements ClientModInitializer {
     private static KeyBinding openWebStreamKey;
@@ -50,19 +52,13 @@ public class WebStreamClient implements ClientModInitializer {
     public static void openWebStream(String username) {
         try {
             // Construire l'URL avec le nom du joueur en paramètre
-            String url = "http://localhost:" + WebStreamMod.CONFIG.port + "?user=" + username;
-            String os = System.getProperty("os.name").toLowerCase();
+            String base = WebStreamMod.CONFIG.getWebUrl();
+            String url = base + (base.contains("?") ? "&" : "?")
+                + "user=" + URLEncoder.encode(username, StandardCharsets.UTF_8);
 
-            WebStreamMod.LOGGER.info("[WebStream] Opening browser for user '{}': {}", username, url);
-
-            if (os.contains("win")) {
-                new ProcessBuilder("cmd", "/c", "start", url).start();
-            } else if (os.contains("mac")) {
-                new ProcessBuilder("open", url).start();
-            } else if (os.contains("nix") || os.contains("nux")) {
-                new ProcessBuilder("xdg-open", url).start();
-            }
-        } catch (IOException e) {
+            WebStreamMod.LOGGER.info("[WebStream] Opening browser for user '{}'", username);
+            WebStreamServer.openUrl(url);
+        } catch (RuntimeException e) {
             WebStreamMod.LOGGER.error("[WebStream] Failed to open browser", e);
         }
     }

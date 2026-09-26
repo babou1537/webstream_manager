@@ -1,97 +1,64 @@
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import crypto from 'crypto';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
 
-// Chemin vers le fichier ops.json du serveur Minecraft
-// Remonter de src/ -> webstream_manager/ -> config/ -> racine serveur/
-const minecraftServerRoot = path.resolve(__dirname, '..', '..', '..');
-const opsFilePath = path.join(minecraftServerRoot, 'ops.json');
-
-let minecraftOps = [];
-
-// Charger les OPs depuis le fichier ops.json de Minecraft
-function loadMinecraftOps() {
-  try {
-    if (fs.existsSync(opsFilePath)) {
-      const opsData = JSON.parse(fs.readFileSync(opsFilePath, 'utf-8'));
-      minecraftOps = opsData
-        .filter(op => op.level >= 3) // Niveau 3+ = permissions admin
-        .map(op => op.name.toLowerCase());
-      console.log(`[Permissions] Loaded ${minecraftOps.length} Minecraft OPs from ops.json`);
-      console.log(`[Permissions] OPs:`, minecraftOps);
-    } else {
-      console.warn(`[Permissions] ops.json not found at: ${opsFilePath}`);
-      console.warn(`[Permissions] Using fallback: all users are admins`);
-    }
-  } catch (error) {
-    console.error('[Permissions] Error loading ops.json:', error.message);
-    console.warn('[Permissions] Using fallback: all users are admins');
-  }
+function isLoopback(req) {
+  const addr = req.socket.remoteAddress || '';
+  return addr === '127.0.0.1' || addr === '::1' || addr === '::ffff:127.0.0.1';
 }
 
-// Charger les OPs au démarrage
-loadMinecraftOps();
+// Images d'écrans, contenu et fichiers statiques : lisibles depuis le réseau
+function isPublicAsset(req) {
+  if (req.method !== 'GET' && req.method !== 'HEAD') return false;
+  return /^\/[^/]+\.png$/.test(req.path) || req.path.startsWith('/content/') || req.path.startsWith('/static/');
+}
 
-// Recharger les OPs toutes les 30 secondes (pour détecter les changements)
-setInterval(loadMinecraftOps, 30000);
+function passwordMatches(header) {
+  const m = /^Basic (.+)$/i.exec(header || '');
+  if (!m) return false;
+  const decoded = Buffer.from(m[1], 'base64').toString('utf8');
+  const given = decoded.slice(decoded.indexOf(':') + 1);
+  const a = crypto.createHash('sha256').update(given).digest();
+  const b = crypto.createHash('sha256').update(ADMIN_PASSWORD).digest();
+  return crypto.timingSafeEqual(a, b);
+}
 
 /**
- * Middleware pour vérifier les permissions d'écriture
- * Seuls les OPs Minecraft de niveau 3+ peuvent modifier
+ * Protège l'interface d'administration :
+ * accès libre (et administrateur) depuis cette machine, mot de passe (ADMIN_PASSWORD) depuis ailleurs.
+ * Derrière un proxy inverse local, toutes les requêtes semblent locales.
  */
+export function networkGuard(req, res, next) {
+  if (isLoopback(req)) {
+    req.isAdmin = true;
+    return next();
+  }
+  if (isPublicAsset(req)) return next();
+
+  if (!ADMIN_PASSWORD) {
+    return res.status(403).send('Accès distant désactivé : définissez adminPassword (mod) ou ADMIN_PASSWORD (serveur).');
+  }
+  if (passwordMatches(req.headers.authorization)) {
+    req.isAdmin = true;
+    return next();
+  }
+
+  res.set('WWW-Authenticate', 'Basic realm="WebStream Manager", charset="UTF-8"');
+  return res.status(401).send('Authentification requise');
+}
+
+// Refuse les écritures qui n'ont pas passé networkGuard
 export function requireWrite(req, res, next) {
-  const username = (req.query.user || req.body.user || 'guest').toLowerCase();
-
-  // Si ops.json n'existe pas ou est vide, tout le monde est admin (mode développement)
-  if (minecraftOps.length === 0) {
-    req.isAdmin = true;
-    return next();
-  }
-
-  // Vérifier si l'utilisateur est OP
-  if (minecraftOps.includes(username)) {
-    req.isAdmin = true;
-    return next();
-  }
-
-  // Sinon, refuser l'accès
+  if (req.isAdmin) return next();
   return res.status(403).json({
     error: 'PERMISSION_DENIED',
-    message: 'Seuls les opérateurs Minecraft (OP niveau 3+) peuvent modifier le contenu.'
+    message: 'Accès en écriture refusé.'
   });
 }
 
-/**
- * Middleware pour injecter les informations de permission dans les vues
- */
+// Informations de permission pour les vues
 export function injectPermissions(req, res, next) {
-  const username = (req.query.user || 'guest').toLowerCase();
-
-  // Si ops.json n'existe pas ou est vide, tout le monde est admin
-  const isAdmin = minecraftOps.length === 0 || minecraftOps.includes(username);
-
-  res.locals.isAdmin = isAdmin;
-  res.locals.username = username;
-  res.locals.minecraftOpsEnabled = minecraftOps.length > 0;
-
+  res.locals.isAdmin = req.isAdmin === true;
+  res.locals.username = String(req.query.user || 'guest').toLowerCase();
   next();
 }
-
-/**
- * Vérifier si un utilisateur est admin
- */
-export function isAdmin(username) {
-  if (minecraftOps.length === 0) return true; // Mode dev
-  return minecraftOps.includes(username.toLowerCase());
-}
-
-/**
- * Obtenir la liste des OPs actuels
- */
-export function getOps() {
-  return [...minecraftOps];
-}
-

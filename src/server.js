@@ -7,19 +7,21 @@ import { fileURLToPath } from 'url';
 import * as store from './store.js';
 
 // Import des permissions
-import { injectPermissions } from './permissions.js';
+import { injectPermissions, networkGuard } from './permissions.js';
 
 // Routes
 import indexRouter from './routes/index.js';
 import familiesRouter from './routes/families.js';
 import libraryRouter from './routes/library.js';
 import screensRouter from './routes/screens.js';
+import dataRouter from './routes/data.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 8282;
+const HOST = process.env.HOST || '127.0.0.1';
 const WORLD_NAME = process.env.WORLD_NAME || 'default';
 const DATA_DIR = process.env.DATA_DIR || path.resolve(__dirname, '..', 'data', WORLD_NAME);
 
@@ -42,6 +44,9 @@ app.set('view engine', 'ejs');
 // Middleware GLOBAL (essentiel pour FormData)
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
+
+// Accès réseau : libre en local, mot de passe à distance
+app.use(networkGuard);
 
 // Injecter les informations de permissions dans toutes les vues
 app.use(injectPermissions);
@@ -87,13 +92,14 @@ app.use('/', indexRouter);
 app.use('/families', familiesRouter);
 app.use('/library', libraryRouter);
 app.use('/screens', screensRouter);
+app.use('/data', dataRouter);
 
 // 404
 app.use((req, res) => {
   res.status(404).render('404', { title: 'Page non trouvée' });
 });
 
-app.listen(PORT, () => {
-  console.log(`WebStream Manager running on http://localhost:${PORT}`);
+app.listen(PORT, HOST, () => {
+  console.log(`WebStream Manager running on http://${HOST}:${PORT}`);
 });
 

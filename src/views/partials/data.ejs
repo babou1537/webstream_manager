@@ -1,0 +1,58 @@
+<section class="page">
+  <h1>Données</h1>
+
+  <% if (error) { %>
+  <div class="card_screens" style="background: #fee2e2; border-color: #f87171;">
+    <p style="margin: 0;">❌ <%= error %></p>
+  </div>
+  <% } %>
+
+  <% if (result) { %>
+  <div class="card_screens" style="background: #dcfce7; border-color: #4ade80;">
+    <p style="margin-top: 0;"><strong>✅ Import terminé</strong></p>
+    <ul style="margin: 0;">
+      <li><%= result.screensAdded %> écran(s) ajouté(s)</li>
+      <li><%= result.screensUpdated %> écran(s) mis à jour</li>
+      <li><%= result.screensSkipped %> écran(s) ignoré(s) (déjà présents)</li>
+      <li><%= result.familiesAdded %> famille(s) ajoutée(s)</li>
+    </ul>
+    <% if (result.missingFiles.length > 0) { %>
+    <p style="margin-bottom: 0;">⚠️ <%= result.missingFiles.length %> image(s) référencée(s) absente(s) de la bibliothèque — envoyez-les depuis la page Bibliothèque :</p>
+    <ul style="margin: 0;">
+      <% result.missingFiles.forEach(f => { %><li><%= f %></li><% }) %>
+    </ul>
+    <% } %>
+  </div>
+  <% } %>
+
+  <div class="card_screens">
+    <h2>Exporter</h2>
+    <p>Télécharge les familles et les écrans dans un fichier JSON, que vous pourrez importer ailleurs. Les images ne sont pas incluses.</p>
+    <a class="manage-btn" href="/data/export">Télécharger l'export (.json)</a>
+  </div>
+
+  <% if (isAdmin) { %>
+  <form class="card_screens" method="post" action="/data/import" enctype="multipart/form-data">
+    <h2>Importer</h2>
+    <p>Choisissez un export <code>.json</code> ou une base <code>.db</code> d'une ancienne version (par exemple <code>src/db/webstream.db</code>).</p>
+
+    <label>Fichier(s)
+      <input type="file" name="files" accept=".json,.db,.sqlite,.sqlite3,.db-wal,.db-shm" multiple required />
+    </label>
+    <p class="muted">Pour une base <code>.db</code> utilisée récemment, sélectionnez aussi ses fichiers <code>.db-wal</code> et <code>.db-shm</code> s'ils existent, sinon les dernières modifications peuvent manquer.</p>
+
+    <fieldset style="border: 0; padding: 0; margin: 1rem 0;">
+      <legend>Si un écran existe déjà</legend>
+      <label><input type="radio" name="mode" value="skip" checked /> Le garder tel quel (ajouter seulement les nouveaux)</label><br />
+      <label><input type="radio" name="mode" value="overwrite" /> Le mettre à jour avec le fichier importé</label><br />
+      <label><input type="radio" name="mode" value="replace" /> Tout remplacer (supprime les écrans et familles actuels)</label>
+    </fieldset>
+
+    <button type="submit" onclick="var m = this.form.mode.value; return m !== 'replace' || confirm('Supprimer tous les écrans et familles actuels avant l\'import ?');">Importer</button>
+  </form>
+  <% } else { %>
+  <div class="card_screens" style="background: #fef3c7; border-color: #fbbf24;">
+    <p style="margin: 0;">🔒 <strong>Mode lecture seule</strong> - l'import est réservé aux administrateurs.</p>
+  </div>
+  <% } %>
+</section>

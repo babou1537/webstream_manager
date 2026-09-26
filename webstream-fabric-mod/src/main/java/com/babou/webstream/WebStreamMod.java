@@ -23,23 +23,24 @@ public class WebStreamMod implements ModInitializer {
         if (CONFIG.enabled) {
             LOGGER.info("[WebStream] WebStream is enabled, starting server...");
 
-            // Démarrer le serveur Node.js
             server = new WebStreamServer();
 
-            // Écouter l'événement de démarrage du serveur pour obtenir le nom du monde
+            // Le nom du monde n'est connu qu'au démarrage du serveur Minecraft : c'est là que Node démarre,
+            // pour que les données soient bien rangées par monde. Le démarrage se fait hors du thread
+            // principal car le premier npm install peut durer plusieurs minutes.
             ServerLifecycleEvents.SERVER_STARTING.register(minecraftServer -> {
                 String worldName = minecraftServer.getSaveProperties().getLevelName();
                 LOGGER.info("[WebStream] Detected world: {}", worldName);
                 server.setWorldName(worldName);
+
+                Thread starter = new Thread(server::start, "webstream-start");
+                starter.setDaemon(true);
+                starter.start();
             });
 
-            try {
-                server.start();
-            } catch (Exception e) {
-                LOGGER.error("[WebStream] Failed to start server", e);
-            }
+            ServerLifecycleEvents.SERVER_STOPPED.register(minecraftServer -> server.stop());
 
-            // Hook d'arrêt propre
+            // Hook d'arrêt propre (filet de sécurité si Minecraft est fermé brutalement)
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 LOGGER.info("[WebStream] Shutting down...");
                 if (server != null) {

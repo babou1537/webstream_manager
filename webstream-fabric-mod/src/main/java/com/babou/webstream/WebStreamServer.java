@@ -6,19 +6,24 @@ import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.nio.file.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 public class WebStreamServer {
     private static final Logger LOGGER = LoggerFactory.getLogger(WebStreamMod.MOD_ID);
+    private static final boolean IS_WINDOWS = System.getProperty("os.name").toLowerCase().contains("win");
+    private static final int NPM_INSTALL_TIMEOUT_SECONDS = 300;
+
     private Process nodeProcess;
     private Process npmProcess;
-    private Path webstreamDir;
+    private final Path webstreamDir;
     private boolean isRunning = false;
     private String worldName = "default";
 
     public WebStreamServer() {
-        // Créer un répertoire dédié pour l'application Node.js extraite du JAR
+        // Répertoire dédié pour l'application Node.js extraite du JAR
         // Utilise "webstream" (pas "webstream_manager") pour éviter les conflits avec le dossier de dev
         this.webstreamDir = FabricLoader.getInstance()
             .getConfigDir()
@@ -31,7 +36,12 @@ public class WebStreamServer {
         LOGGER.info("[WebStream] World name set to: {}", this.worldName);
     }
 
-    public void start() {
+    public synchronized void start() {
+        if (isRunning()) {
+            LOGGER.info("[WebStream] Server already running");
+            return;
+        }
+
         try {
             LOGGER.info("[WebStream] Starting WebStream server...");
 
@@ -47,19 +57,19 @@ public class WebStreamServer {
             String nodeVersion = getNodeVersion();
             LOGGER.info("[WebStream] Node.js detected: {}", nodeVersion);
 
-            extractNodeApp();
-            installDependencies();
+            boolean appUpdated = extractNodeApp();
+            installDependencies(appUpdated);
             startNodeProcess();
 
-            LOGGER.info("[WebStream] Server started successfully on http://localhost:{}",
-                WebStreamMod.CONFIG.port);
+            LOGGER.info("[WebStream] Server started successfully on http://{}:{}",
+                WebStreamMod.CONFIG.bindAddress, WebStreamMod.CONFIG.port);
 
         } catch (Exception e) {
             LOGGER.error("[WebStream] Error starting server", e);
         }
     }
 
-    public void stop() {
+    public synchronized void stop() {
         if (nodeProcess != null && nodeProcess.isAlive()) {
             LOGGER.info("[WebStream] Stopping Node.js server...");
             nodeProcess.destroy();
@@ -84,23 +94,34 @@ public class WebStreamServer {
     }
 
     private boolean isNodeInstalled() {
-        try {
-            Process process = new ProcessBuilder("node", "--version")
-                .redirectErrorStream(true)
-                .start();
-            process.waitFor(2, TimeUnit.SECONDS);
-            return process.exitValue() == 0;
-        } catch (Exception e) {
-            return false;
-        }
+        return commandSucceeds(command("node", "--version"));
     }
 
     private boolean isNpmInstalled() {
+        return commandSucceeds(command("npm", "--version"));
+    }
+
+    // Sous Windows, npm est un npm.cmd : il faut passer par cmd pour le trouver
+    private static List<String> command(String program, String... args) {
+        List<String> cmd = new ArrayList<>();
+        if (IS_WINDOWS && program.equals("npm")) {
+            cmd.add("cmd");
+            cmd.add("/c");
+        }
+        cmd.add(program);
+        cmd.addAll(List.of(args));
+        return cmd;
+    }
+
+    private static boolean commandSucceeds(List<String> cmd) {
         try {
-            Process process = new ProcessBuilder("npm", "--version")
+            Process process = new ProcessBuilder(cmd)
                 .redirectErrorStream(true)
                 .start();
-            process.waitFor(2, TimeUnit.SECONDS);
+            if (!process.waitFor(10, TimeUnit.SECONDS)) {
+                process.destroyForcibly();
+                return false;
+            }
             return process.exitValue() == 0;
         } catch (Exception e) {
             return false;
@@ -124,32 +145,58 @@ public class WebStreamServer {
         }
     }
 
-    private void extractNodeApp() throws IOException {
-        LOGGER.info("[WebStream] Extracting Node.js application...");
-
-        if (!Files.exists(webstreamDir)) {
-            Files.createDirectories(webstreamDir);
-        }
-
-        Path packageJson = webstreamDir.resolve("package.json");
-        if (Files.exists(packageJson)) {
-            LOGGER.info("[WebStream] Application already extracted, skipping...");
-            return;
-        }
-
-        copyResourceDirectory("webstream-node", webstreamDir);
-
-
-        LOGGER.info("[WebStream] Application extracted to: {}", webstreamDir);
+    private String getModVersion() {
+        return FabricLoader.getInstance()
+            .getModContainer(WebStreamMod.MOD_ID)
+            .map(c -> c.getMetadata().getVersion().getFriendlyString())
+            .orElse("unknown");
     }
 
+    // Version + taille/date du JAR : un JAR recompilé sans changer de version est aussi ré-extrait
+    private String getAppFingerprint() {
+        StringBuilder fp = new StringBuilder(getModVersion());
+        try {
+            var container = FabricLoader.getInstance().getModContainer(WebStreamMod.MOD_ID);
+            if (container.isPresent()) {
+                for (Path p : container.get().getOrigin().getPaths()) {
+                    if (Files.isRegularFile(p)) {
+                        fp.append('+').append(Files.size(p)).append('-')
+                            .append(Files.getLastModifiedTime(p).toMillis());
+                    }
+                }
+            }
+        } catch (IOException | RuntimeException e) {
+            LOGGER.warn("[WebStream] Could not fingerprint mod jar, using version only");
+        }
+        return fp.toString();
+    }
+
+    // Retourne true si l'application a été (ré)extraite. Les données (data/, storage/) ne sont jamais touchées :
+    // elles ne font pas partie du JAR.
+    private boolean extractNodeApp() throws IOException {
+        Files.createDirectories(webstreamDir);
+
+        String fingerprint = getAppFingerprint();
+        Path versionFile = webstreamDir.resolve(".mod-version");
+        String installedFingerprint = Files.exists(versionFile) ? Files.readString(versionFile).trim() : "";
+
+        if (installedFingerprint.equals(fingerprint) && Files.exists(webstreamDir.resolve("package.json"))) {
+            LOGGER.info("[WebStream] Application already up to date, skipping extraction");
+            return false;
+        }
+
+        LOGGER.info("[WebStream] Extracting Node.js application (mod version {})...", getModVersion());
+        copyResourceDirectory("webstream-node", webstreamDir);
+        Files.writeString(versionFile, fingerprint);
+        LOGGER.info("[WebStream] Application extracted to: {}", webstreamDir);
+        return true;
+    }
 
     private void copyResourceDirectory(String resourcePath, Path targetDir) throws IOException {
         var modContainer = FabricLoader.getInstance()
             .getModContainer(WebStreamMod.MOD_ID)
             .orElseThrow();
 
-        // Utiliser findPath() au lieu de getRootPath() déprécié
         var sourcePath = modContainer.findPath(resourcePath);
 
         if (sourcePath.isPresent() && Files.isDirectory(sourcePath.get())) {
@@ -174,38 +221,38 @@ public class WebStreamServer {
         }
     }
 
-    private void installDependencies() throws IOException, InterruptedException {
-        Path nodeModules = webstreamDir.resolve("node_modules");
+    private void installDependencies(boolean appUpdated) throws IOException, InterruptedException {
+        // Marqueur écrit seulement après un npm install réussi : un install interrompu sera refait
+        Path marker = webstreamDir.resolve("node_modules").resolve(".webstream-deps");
 
-        if (Files.exists(nodeModules)) {
+        if (!appUpdated && Files.exists(marker)) {
             LOGGER.info("[WebStream] Dependencies already installed, skipping npm install...");
             return;
         }
 
-        // Vérifier si npm est disponible
         if (!isNpmInstalled()) {
             LOGGER.error("[WebStream] ========================================");
             LOGGER.error("[WebStream] npm NOT FOUND in PATH!");
             LOGGER.error("[WebStream] Dependencies are missing and npm cannot install them.");
             LOGGER.error("[WebStream] Please run 'npm install' manually in:");
             LOGGER.error("[WebStream] {}", webstreamDir.toAbsolutePath());
-            LOGGER.error("[WebStream] OR copy node_modules from the webstream_manager directory");
             LOGGER.error("[WebStream] ========================================");
             throw new IOException("npm not found and dependencies are missing");
         }
 
-        LOGGER.info("[WebStream] Installing npm dependencies (this may take a moment)...");
+        LOGGER.info("[WebStream] Installing npm dependencies (this may take a few minutes the first time)...");
 
-        ProcessBuilder pb = new ProcessBuilder("npm", "install", "--production")
+        ProcessBuilder pb = new ProcessBuilder(command("npm", "install", "--omit=dev", "--no-audit", "--no-fund"))
             .directory(webstreamDir.toFile())
             .redirectErrorStream(true);
 
         npmProcess = pb.start();
 
         Thread outputThread = new Thread(() -> logProcessOutput(npmProcess, "[npm]"));
+        outputThread.setDaemon(true);
         outputThread.start();
 
-        boolean finished = npmProcess.waitFor(120, TimeUnit.SECONDS);
+        boolean finished = npmProcess.waitFor(NPM_INSTALL_TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
         if (!finished) {
             LOGGER.error("[WebStream] npm install timeout!");
@@ -217,6 +264,8 @@ public class WebStreamServer {
             throw new IOException("npm install failed with code " + npmProcess.exitValue());
         }
 
+        Files.createDirectories(marker.getParent());
+        Files.writeString(marker, getModVersion());
         LOGGER.info("[WebStream] Dependencies installed successfully");
     }
 
@@ -228,9 +277,13 @@ public class WebStreamServer {
             .redirectErrorStream(true);
 
         pb.environment().put("PORT", String.valueOf(WebStreamMod.CONFIG.port));
+        pb.environment().put("HOST", WebStreamMod.CONFIG.bindAddress);
         pb.environment().put("NODE_ENV", "production");
         pb.environment().put("WORLD_NAME", this.worldName);
         pb.environment().put("DATA_DIR", webstreamDir.resolve("data").resolve(this.worldName).toString());
+        if (!WebStreamMod.CONFIG.adminPassword.isEmpty()) {
+            pb.environment().put("ADMIN_PASSWORD", WebStreamMod.CONFIG.adminPassword);
+        }
 
         nodeProcess = pb.start();
         isRunning = true;
@@ -266,15 +319,18 @@ public class WebStreamServer {
     }
 
     public void openBrowser() {
+        openUrl(WebStreamMod.CONFIG.getWebUrl());
+    }
+
+    // rundll32 plutôt que "cmd /c start" : les '&' d'une URL ne sont pas interprétés par cmd
+    public static void openUrl(String url) {
         try {
-            String url = "http://localhost:" + WebStreamMod.CONFIG.port;
             String os = System.getProperty("os.name").toLowerCase();
 
             LOGGER.info("[WebStream] Opening browser: {}", url);
 
             if (os.contains("win")) {
-                // Utilisation de cmd /c start pour Windows
-                new ProcessBuilder("cmd", "/c", "start", url).start();
+                new ProcessBuilder("rundll32", "url.dll,FileProtocolHandler", url).start();
             } else if (os.contains("mac")) {
                 new ProcessBuilder("open", url).start();
             } else if (os.contains("nix") || os.contains("nux")) {
@@ -289,4 +345,3 @@ public class WebStreamServer {
         return WebStreamMod.CONFIG.port;
     }
 }
-

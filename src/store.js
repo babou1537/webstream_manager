@@ -248,6 +248,145 @@ export async function deleteScreen(ref) {
   dbg('deleteScreen', { ref });
 }
 
+// Export / import (familles rapprochées par nom, portable d'une base à l'autre)
+export async function exportData() {
+  const database = await getDb();
+  const families = await database.all('SELECT name FROM families ORDER BY name COLLATE NOCASE');
+  const screens = await database.all(`
+    SELECT s.ref, f.name AS family, s.content, s.width, s.height
+    FROM screens s
+    LEFT JOIN families f ON f.id = s.family_id
+    ORDER BY s.ref COLLATE NOCASE
+  `);
+  return {
+    format: 'webstream-export',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    families: families.map(f => f.name),
+    screens
+  };
+}
+
+const MAX_IMPORT_SCREENS = 10000;
+
+function cleanNumber(v) {
+  if (v == null || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function normalizeImport(data) {
+  if (!data || !Array.isArray(data.screens)) throw new Error('IMPORT_INVALID');
+  if (data.screens.length > MAX_IMPORT_SCREENS) throw new Error('IMPORT_TOO_LARGE');
+
+  const families = new Set();
+  for (const f of Array.isArray(data.families) ? data.families : []) {
+    const name = String(f ?? '').trim();
+    if (name) families.add(name);
+  }
+
+  const screens = new Map();
+  for (const s of data.screens) {
+    const ref = String(s?.ref ?? '').trim();
+    if (!ref) continue;
+    const family = String(s.family ?? '').trim() || null;
+    if (family) families.add(family);
+    const content = String(s.content ?? '').trim();
+    screens.set(ref, {
+      ref,
+      family,
+      content: content && !/[\\/]/.test(content) ? content : null,
+      width: cleanNumber(s.width),
+      height: cleanNumber(s.height)
+    });
+  }
+  return { families: [...families], screens: [...screens.values()] };
+}
+
+// mode : 'skip' (ajouter seulement les nouveaux), 'overwrite' (mettre à jour les existants), 'replace' (tout remplacer)
+export async function importData(data, mode = 'skip') {
+  if (!['skip', 'overwrite', 'replace'].includes(mode)) throw new Error('IMPORT_BAD_MODE');
+  const { families, screens } = normalizeImport(data);
+  const database = await getDb();
+  const result = { familiesAdded: 0, screensAdded: 0, screensUpdated: 0, screensSkipped: 0, missingFiles: [] };
+
+  await database.exec('BEGIN IMMEDIATE');
+  try {
+    if (mode === 'replace') {
+      await database.run('DELETE FROM screens');
+      await database.run('DELETE FROM families');
+    }
+
+    for (const name of families) {
+      const info = await database.run('INSERT OR IGNORE INTO families (name) VALUES (?)', name);
+      result.familiesAdded += info.changes;
+    }
+    const idByName = new Map((await database.all('SELECT id, name FROM families')).map(f => [f.name, f.id]));
+
+    for (const s of screens) {
+      const familyId = s.family ? idByName.get(s.family) ?? null : null;
+      const exists = await database.get('SELECT 1 AS x FROM screens WHERE ref = ?', s.ref);
+      if (!exists) {
+        await database.run(
+          'INSERT INTO screens (ref, family_id, family, content, width, height) VALUES (?, ?, ?, ?, ?, ?)',
+          s.ref, familyId, s.family, s.content, s.width, s.height
+        );
+        result.screensAdded++;
+      } else if (mode === 'overwrite') {
+        await database.run(
+          'UPDATE screens SET family_id = ?, family = ?, content = ?, width = ?, height = ? WHERE ref = ?',
+          familyId, s.family, s.content, s.width, s.height, s.ref
+        );
+        result.screensUpdated++;
+      } else {
+        result.screensSkipped++;
+      }
+      if (s.content && !resolveContentPath(s.content) && !result.missingFiles.includes(s.content)) {
+        result.missingFiles.push(s.content);
+      }
+    }
+    await database.exec('COMMIT');
+  } catch (e) {
+    await database.exec('ROLLBACK');
+    throw e;
+  }
+  return result;
+}
+
+// Lit une base SQLite d'une ancienne version (main ou mod) et la convertit au format d'import
+export async function readSqliteExport(filePath) {
+  let src;
+  try {
+    src = await open({ filename: filePath, driver: sqlite3.Database });
+    const tables = new Set((await src.all(`SELECT name FROM sqlite_master WHERE type = 'table'`)).map(r => r.name));
+    if (!tables.has('screens')) throw new Error('IMPORT_NO_SCREENS_TABLE');
+
+    const famById = new Map();
+    const families = [];
+    if (tables.has('families')) {
+      for (const f of await src.all('SELECT id, name FROM families')) {
+        famById.set(f.id, f.name);
+        families.push(f.name);
+      }
+    }
+
+    const rows = await src.all('SELECT * FROM screens');
+    const screens = rows.map(r => ({
+      ref: r.ref,
+      family: (r.family_id != null ? famById.get(r.family_id) : null) ?? r.family ?? null,
+      content: r.content,
+      width: r.width,
+      height: r.height
+    }));
+    return { families, screens };
+  } catch (e) {
+    if (String(e.code).startsWith('SQLITE_')) throw new Error('IMPORT_NOT_A_DATABASE');
+    throw e;
+  } finally {
+    if (src) await src.close();
+  }
+}
+
 export function resolveContentPath(fileName) {
   if (!fileName) return null;
   const abs = path.join(libraryDir, fileName);

@@ -19,6 +19,17 @@ public class WebStreamConfig {
     public boolean autoOpenBrowser = false;
     public String keybind = "W";
     public boolean useCtrlModifier = true;
+    // 127.0.0.1 = cette machine seulement. Mettre 0.0.0.0 pour ouvrir au réseau (définir alors adminPassword)
+    public String bindAddress = "127.0.0.1";
+    // Mot de passe demandé aux accès distants à l'interface (utilisateur quelconque). Vide = accès distant refusé
+    public String adminPassword = "";
+    // URL de l'interface hébergée ailleurs (ex: http://mon-serveur:8282). Vide = serveur local
+    public String remoteUrl = "";
+
+    public String getWebUrl() {
+        String url = remoteUrl == null ? "" : remoteUrl.trim();
+        return url.isEmpty() ? "http://localhost:" + port : url;
+    }
 
     public static WebStreamConfig load() {
         Path configPath = FabricLoader.getInstance()
@@ -29,6 +40,12 @@ public class WebStreamConfig {
             try {
                 String json = Files.readString(configPath);
                 WebStreamConfig config = GSON.fromJson(json, WebStreamConfig.class);
+                if (config == null) {
+                    return new WebStreamConfig();
+                }
+                // Une valeur "null" explicite dans le JSON écrase le défaut
+                if (config.bindAddress == null || config.bindAddress.isBlank()) config.bindAddress = "127.0.0.1";
+                if (config.adminPassword == null) config.adminPassword = "";
                 LOGGER.info("[WebStream] Configuration loaded from {}", configPath);
                 return config;
             } catch (IOException e) {

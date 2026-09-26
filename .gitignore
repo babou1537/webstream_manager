@@ -6,3 +6,8 @@ storage/**/*.db
 .DS_Store
 .vscode/
 storage/library/*
+# Données utilisateur (écrans, familles) - ne pas versionner
+data/
+
+# Export personnel des écrans à importer (données perso)
+a-importer/

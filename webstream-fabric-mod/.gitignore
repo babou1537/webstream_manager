@@ -30,3 +30,6 @@ src/main/resources/webstream-node/package-lock.json
 *.log
 *.tmp
 
+
+# Application Node.js embarquée : générée dans build/ par la tâche syncNodeApp, ne pas versionner
+src/main/resources/webstream-node/
