@@ -1,0 +1,8 @@
+EN (max 256 caractères, à coller dans le champ "Summary") :
+Manage the images on your WebStreamer screens from a built-in web page: image library, screens with fixed addresses, per-world profiles and a multiplayer-ready public port. No Node.js, no database. English, French, Spanish.
+
+FR (pour la description courte si vous voulez la traduire dans votre README) :
+Gérez les images de vos écrans WebStreamer depuis une page web intégrée : bibliothèque, écrans à adresse fixe, profils par monde et port public pour le multijoueur. Sans Node.js ni base de données.
+
+ES :
+Gestiona las imágenes de tus pantallas de WebStreamer desde una página web integrada: biblioteca, pantallas con dirección fija, perfiles por mundo y puerto público para multijugador. Sin Node.js ni base de datos.
