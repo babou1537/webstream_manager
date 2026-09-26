@@ -23,46 +23,22 @@ dependencies {
 
     // Fabric API
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
-}
 
-// Copie le code de l'application Node.js (../src + package.json) vers build/, jamais vers src/main/resources.
-// Sync supprime les fichiers périmés. Ne sont PAS embarqués : bases de données, images uploadées,
-// node_modules (binaires natifs propres à l'OS, réinstallés par npm au premier lancement), permissions.json.
-task syncNodeApp(type: Sync) {
-    description = "Prépare l'application Node.js à embarquer dans le JAR"
-
-    into layout.buildDirectory.dir('generated/node-app')
-
-    from('../src') {
-        into 'webstream-node/src'
-        exclude 'db/**'
-        exclude '**/*.db', '**/*.db-shm', '**/*.db-wal'
-        exclude '**/*.bak'
-        exclude 'permissions.json'
-        exclude '**/.DS_Store'
-    }
-
-    from('../package.json') {
-        into 'webstream-node'
-    }
-    from('../package-lock.json') {
-        into 'webstream-node'
-    }
+    // Tests (le cœur et le serveur web n'utilisent aucune classe Minecraft)
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.2'
 }
 
 processResources {
     inputs.property "version", project.version
 
-    // Repartir d'un dossier propre : aucun fichier périmé d'un ancien build ne doit finir dans le JAR
-    doFirst {
-        delete layout.buildDirectory.dir('resources/main/webstream-node')
-    }
-
-    from(syncNodeApp)
-
     filesMatching("fabric.mod.json") {
         expand "version": project.version
     }
+}
+
+test {
+    useJUnitPlatform()
 }
 
 tasks.withType(JavaCompile).configureEach {
@@ -86,3 +62,10 @@ jar {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
+
+// Interface web hors Minecraft, pour la développer : gradlew runWeb --args="dossier port export.json dossier-images"
+tasks.register('runWeb', JavaExec) {
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'com.babou.webstream.DevServer'
+    standardInput = System.in
+}

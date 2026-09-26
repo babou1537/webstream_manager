@@ -28,15 +28,7 @@ public class PauseScreenMixin extends Screen {
         this.addDrawableChild(
             ButtonWidget.builder(
                 Text.translatable("text.webstream.button"),
-                button -> {
-                    // Récupérer le nom du joueur depuis le client
-                    if (this.client != null && this.client.player != null) {
-                        String username = this.client.player.getName().getString();
-                        WebStreamClient.openWebStream(username);
-                    } else {
-                        WebStreamClient.openWebStream("guest");
-                    }
-                }
+                button -> WebStreamClient.openWebStream()
             )
             .dimensions(centerX, buttonY, buttonWidth, buttonHeight)
             .build()

@@ -1,13 +1,5 @@
 {
   "key.webstream.open": "Open WebStream Manager",
   "category.webstream": "WebStream Manager",
-  "text.webstream.button": "📺 WebStream",
-  "text.webstream.enabled": "WebStream Manager enabled",
-  "text.webstream.disabled": "WebStream Manager disabled",
-  "text.webstream.nodejs_not_found": "Node.js not found! Download it from https://nodejs.org",
-  "text.webstream.server_starting": "Starting WebStream server...",
-  "text.webstream.server_started": "WebStream server started on http://localhost:%d",
-  "text.webstream.server_stopped": "WebStream server stopped",
-  "text.webstream.server_error": "Error starting WebStream server"
+  "text.webstream.button": "📺 WebStream"
 }
-
